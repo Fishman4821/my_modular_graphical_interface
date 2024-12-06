@@ -55,7 +55,7 @@ public:
         this->len = len;
     }
 
-    ~Data() {
+    void free_data() {
         free(data);
     }
 
@@ -117,6 +117,10 @@ public:
     void init(State* state) {
         (init_fn)(this, state);
     }
+
+    void destroy() {
+        this->data.free_data();
+    }
 };
 
 class Renderer {
@@ -150,10 +154,10 @@ public:
 
     void triangle(int x1, int y1, int x2, int y2, int x3, int y3, Color fill) {
         SDL_Vertex vertices[] = {
-		{{x1, y1}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}},
-		{{x2, y2}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}},
-		{{x3, y3}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}}};
-		SDL_RenderGeometry(this->renderer, NULL, vertices, 3, NULL, 0);
+        {{x1, y1}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}},
+        {{x2, y2}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}},
+        {{x3, y3}, {fill.r, fill.g, fill.b, fill.a}, {0, 0}}};
+        SDL_RenderGeometry(this->renderer, NULL, vertices, 3, NULL, 0);
     }
 
     void text(const char* text, int x, int y, int w, int h, Color fill) {
@@ -186,6 +190,15 @@ class Inputs {
     }
 };
 
+class Time {
+public:
+    float delta_time;
+
+    Time() {
+        this->delta_time = 0.01;
+    }
+};
+
 class State {
 private:
     vector<Element*> update_list;
@@ -196,10 +209,12 @@ public:
 
     Renderer r;
     Inputs i;
+    Time t;
 
     State(const char* windowTitle, int width, int height) {
         this->quit = false;
         this->r = Renderer(windowTitle, width, height);
+        this->t = Time();
         this->update_list = {};
     }
 
@@ -280,29 +295,39 @@ void update_player2(Element* e, State* state) {
 }
 
 void init_ball(Element* e, State* state) {
-    Element* player1 = state->get_element("player1");
+    Element* player1 = state->get_element("player1"); // get pointer to the element for player1
     Element* player2 = state->get_element("player2");
-    float** ball_player1_y = (float**)e->data.value(0);
+    float** ball_player1_y = (float**)e->data.value(0); // get the ball's pointer to a float* (pointer to the pointer of the y value of player1)
     float** ball_player2_y = (float**)e->data.value(1);
-    cout << ball_player1_y << "\n";
-    *ball_player1_y = (float*)player1->data.value(0);
+    *ball_player1_y = (float*)player1->data.value(0); // set the value at the ball's pointer to the float* that points to the y value of player 1
     *ball_player2_y = (float*)player2->data.value(0);
     float* x_pos = ((float*)e->data.value(2));
     float* y_pos = ((float*)e->data.value(3));
     *x_pos = 320;
     *y_pos = 240;
+    float* x_vel = (float*)(e->data.value(4));
+    float* y_vel = (float*)(e->data.value(5));
+    *x_vel = -1;
+    *y_vel = 0;
 }
 
 void update_ball(Element* e, State* state) {
-    float* player1_y = (float*)(e->data.value(0));
+    float* player1_y = *(float**)(e->data.value(0)); // get the pointer to the ball's pointer to the value of player1's y then get the value from that pointer (contains pointer to player1_y)
     float* player2_y = (float*)(e->data.value(1));
     float* x_pos = ((float*)e->data.value(2));
     float* y_pos = ((float*)e->data.value(3));
     float* x_vel = (float*)(e->data.value(4));
     float* y_vel = (float*)(e->data.value(5));
-    *y_pos = **(float**)player1_y;
-    cout << "player1: {f: " << *player1_y << ", i: " << (unsigned long long*)(player1_y) << ", *f: " << **(float**)player1_y<< "}\t";
-    cout  << *player2_y << "\t" << *x_pos << "\t" << *y_pos << "\n";
+    //*y_pos = *player1_y; // set the ball y value to player1's y value
+    //cout << "player1: {f: " << *player1_y << ", i: " << (unsigned long long*)(player1_y) << ", *f: " << **(float**)player1_y<< "}\t";
+    //cout  << *player2_y << "\t" << *x_pos << "\t" << *y_pos << "\n";
+    cout << *x_pos << "\t" << *y_pos << "\t" << (*x_pos - 10 <= 30) << "\t" << (*player1_y + 30 < *y_pos + 10) << "\t" << (*player1_y - 30 > *y_pos - 10) << "\n";
+
+    if ((*x_pos - 10 <= 30 && *player1_y + 30 > *y_pos + 10 && *player1_y - 30 > *y_pos - 10)) {
+        *x_vel = -*x_vel;
+    }
+    *x_pos += *x_vel * state->t.delta_time;
+    *y_pos += *y_vel * state->t.delta_time;
     state->r.rect(*x_pos + 10, *y_pos + 10, *x_pos - 10, *y_pos - 10, Color(55, 55, 55));
 }
 
@@ -312,14 +337,14 @@ int main() {
     Element background = Element("background", update_background);
     state.add_element(&background);
 
-    size_t player_sizes = 8; 
+    size_t player_sizes = sizeof(float); 
     Element player1 = Element("player1", &player_sizes, 1, update_player1);
     state.add_element(&player1);
 
     Element player2 = Element("player2", &player_sizes, 1, update_player2);
     state.add_element(&player2);
 
-    size_t ball_sizes[6] = {8, 8, 4, 4, 4, 4};
+    size_t ball_sizes[6] = {sizeof(float*), sizeof(float*), sizeof(float), sizeof(float), sizeof(float), sizeof(float)};
     Element ball = Element("ball", ball_sizes, 6, update_ball, init_ball);
     state.add_element(&ball);
 
@@ -327,8 +352,8 @@ int main() {
         state.update();
     }
 
-    background.~Element();
-    player1.~Element();
-    player2.~Element();
-    ball.~Element();
+    background.destroy();
+    player1.destroy();
+    player2.destroy();
+    ball.destroy();
 }
