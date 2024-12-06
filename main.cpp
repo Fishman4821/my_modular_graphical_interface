@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <math.h>
 
 #define SDL_MAIN_HANDLED
 #include "SDL.h"
@@ -195,7 +196,7 @@ public:
     float delta_time;
 
     Time() {
-        this->delta_time = 0.01;
+        this->delta_time = 0.05;
     }
 };
 
@@ -305,29 +306,32 @@ void init_ball(Element* e, State* state) {
     float* y_pos = ((float*)e->data.value(3));
     *x_pos = 320;
     *y_pos = 240;
-    float* x_vel = (float*)(e->data.value(4));
-    float* y_vel = (float*)(e->data.value(5));
-    *x_vel = -1;
-    *y_vel = 0;
+    float* total_vel = (float*)(e->data.value(4));
+    float* split_vel = (float*)(e->data.value(5));
+    *total_vel = 1;
+    *split_vel = -0.75;
 }
 
 void update_ball(Element* e, State* state) {
     float* player1_y = *(float**)(e->data.value(0)); // get the pointer to the ball's pointer to the value of player1's y then get the value from that pointer (contains pointer to player1_y)
-    float* player2_y = (float*)(e->data.value(1));
+    float* player2_y = *(float**)(e->data.value(1));
     float* x_pos = ((float*)e->data.value(2));
     float* y_pos = ((float*)e->data.value(3));
-    float* x_vel = (float*)(e->data.value(4));
-    float* y_vel = (float*)(e->data.value(5));
+    float* total_vel = (float*)(e->data.value(4));
+    float* split_vel = (float*)(e->data.value(5));
     //*y_pos = *player1_y; // set the ball y value to player1's y value
     //cout << "player1: {f: " << *player1_y << ", i: " << (unsigned long long*)(player1_y) << ", *f: " << **(float**)player1_y<< "}\t";
     //cout  << *player2_y << "\t" << *x_pos << "\t" << *y_pos << "\n";
-    cout << *x_pos << "\t" << *y_pos << "\t" << (*x_pos - 10 <= 30) << "\t" << (*player1_y + 30 < *y_pos + 10) << "\t" << (*player1_y - 30 > *y_pos - 10) << "\n";
-
-    if ((*x_pos - 10 <= 30 && *player1_y + 30 > *y_pos + 10 && *player1_y - 30 > *y_pos - 10)) {
-        *x_vel = -*x_vel;
+    //cout << *x_pos << "\t" << *y_pos << "\t" << (*x_pos + 10 >= 610) << "\t" << !(*player2_y + 30 < *y_pos - 10) << "\t" << !(*player2_y - 30 > *y_pos + 10) << "\n";
+    
+    if ((*x_pos - 10 <= 30 && !(*player1_y + 30 < *y_pos - 10) && !(*player1_y - 30 > *y_pos + 10)) || 
+        (*x_pos + 10 >= 610 && !(*player2_y + 30 < *y_pos - 10) && !(*player2_y - 30 > *y_pos + 10))) {
+        *split_vel = (1 - *split_vel) * -1;
     }
-    *x_pos += *x_vel * state->t.delta_time;
-    *y_pos += *y_vel * state->t.delta_time;
+
+    *x_pos += *total_vel * *split_vel * state->t.delta_time;
+    *y_pos += *total_vel * (1 - abs(*split_vel)) * signbit(*split_vel) * state->t.delta_time;
+    cout << *total_vel << "\t" << *split_vel << "\t" << (1 - *split_vel) * -1 << "\t" << *total_vel * *split_vel << "\t" << *total_vel * (1 - abs(*split_vel)) * signbit(*split_vel) << "\n";
     state->r.rect(*x_pos + 10, *y_pos + 10, *x_pos - 10, *y_pos - 10, Color(55, 55, 55));
 }
 
