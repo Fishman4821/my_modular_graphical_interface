@@ -25,6 +25,10 @@ public:
         this->b = b;
         this->a = 255;
     }
+
+    SDL_Color sdl() {
+        return {this->r, this->b, this->g, this->a};
+    }
 };
 
 class Data {
@@ -34,11 +38,6 @@ public:
     int len;
 
     Data() = default;
-    Data(void* data, size_t* sizes) {
-        this->data = data;
-        this->sizes = sizes;
-    }
-
     Data(void* data, size_t* sizes, int len) {
         this->data = data;
         this->sizes = sizes;
@@ -85,7 +84,7 @@ public:
     Element() = default;
     Element(const char* name, void (*update_fn)(Element*, State*)) {
         this->name = name;
-        this->data = Data(nullptr, nullptr);
+        this->data = Data(nullptr, nullptr, NULL);
         this->update_fn = update_fn;
         this->init_fn = nullptr;
     }
@@ -99,7 +98,7 @@ public:
 
     Element(const char* name, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*)) {
         this->name = name;
-        this->data = Data(nullptr, nullptr);
+        this->data = Data(nullptr, nullptr, NULL);
         this->update_fn = update_fn;
         this->init_fn = init_fn;
     }
@@ -124,10 +123,37 @@ public:
     }
 };
 
+class Font {
+public:
+    TTF_Font* font;
+
+    Font(const char* file_path, int point) {
+        this->font = TTF_OpenFont(file_path, point);
+    }
+
+    void destroy() {
+        TTF_CloseFont(this->font);
+    }
+
+    void set_size(int point) {
+        TTF_SetFontSize(this->font, point);
+    }
+
+    void set_style(bool bold, bool italic, bool underline, bool strikethrough) {
+        TTF_SetFontStyle(this->font,
+            (TTF_STYLE_BOLD & bold) ||
+            (TTF_STYLE_ITALIC & italic) ||
+            (TTF_STYLE_UNDERLINE & underline) ||
+            (TTF_STYLE_STRIKETHROUGH & strikethrough)
+        );
+    }
+};
+
 class Renderer {
 private:
-    SDL_Window *window;
-    SDL_Renderer *renderer;
+    SDL_Window* window;
+    SDL_Surface* window_surface;
+    SDL_Renderer* renderer;
     
 public:
     Renderer() = default;
@@ -141,6 +167,8 @@ public:
             0);
 
         this->renderer = SDL_CreateRenderer(window, -1, 0);
+        TTF_Init();
+        this->window_surface = SDL_GetWindowSurface(this->window);
     }
 
     void rect(int x1, int y1, int x2, int y2, Color fill) {
@@ -161,8 +189,13 @@ public:
         SDL_RenderGeometry(this->renderer, NULL, vertices, 3, NULL, 0);
     }
 
-    void text(const char* text, int x, int y, int w, int h, Color fill) {
-        
+    void text(const char* text, int x, int y, int w, int h, Font* font, Color fill) {
+        SDL_Surface* text_surface = TTF_RenderText_Solid_Wrapped(font->font, text, fill.sdl(), 0);
+        SDL_Texture* text_texture = SDL_CreateTextureFromSurface(this->renderer, text_surface);
+        SDL_Rect src_rect = {0, 0, w, h};
+        SDL_Rect dst_rect = {x, y, x + w, y + h};
+        SDL_RenderCopy(this->renderer, text_texture, &src_rect, &dst_rect);
+        SDL_FreeSurface(text_surface);
     }
 
     void draw() {
@@ -306,10 +339,12 @@ void init_ball(Element* e, State* state) {
     float* y_pos = ((float*)e->data.value(3));
     *x_pos = 320;
     *y_pos = 240;
-    float* total_vel = (float*)(e->data.value(4));
-    float* split_vel = (float*)(e->data.value(5));
-    *total_vel = 1;
-    *split_vel = -0.75;
+    float* angle = (float*)(e->data.value(4));
+    float* speed = (float*)(e->data.value(5));
+    *angle = -35;
+    *speed = 0.1;
+    Font* font = (Font*)(e->data.value(6));
+    *font = Font("RobotoMono-Regular.ttf", 14);
 }
 
 void update_ball(Element* e, State* state) {
@@ -317,22 +352,36 @@ void update_ball(Element* e, State* state) {
     float* player2_y = *(float**)(e->data.value(1));
     float* x_pos = ((float*)e->data.value(2));
     float* y_pos = ((float*)e->data.value(3));
-    float* total_vel = (float*)(e->data.value(4));
-    float* split_vel = (float*)(e->data.value(5));
-    //*y_pos = *player1_y; // set the ball y value to player1's y value
-    //cout << "player1: {f: " << *player1_y << ", i: " << (unsigned long long*)(player1_y) << ", *f: " << **(float**)player1_y<< "}\t";
-    //cout  << *player2_y << "\t" << *x_pos << "\t" << *y_pos << "\n";
-    //cout << *x_pos << "\t" << *y_pos << "\t" << (*x_pos + 10 >= 610) << "\t" << !(*player2_y + 30 < *y_pos - 10) << "\t" << !(*player2_y - 30 > *y_pos + 10) << "\n";
-    
+    float* angle = (float*)(e->data.value(4));
+    float* speed = (float*)(e->data.value(5));
+    int* player1_score = (int*)(e->data.value(7));
+    int* player2_score = (int*)(e->data.value(8));
+
     if ((*x_pos - 10 <= 30 && !(*player1_y + 30 < *y_pos - 10) && !(*player1_y - 30 > *y_pos + 10)) || 
         (*x_pos + 10 >= 610 && !(*player2_y + 30 < *y_pos - 10) && !(*player2_y - 30 > *y_pos + 10))) {
-        *split_vel = (1 - *split_vel) * -1;
+        *angle = -*angle;
     }
 
-    *x_pos += *total_vel * *split_vel * state->t.delta_time;
-    *y_pos += *total_vel * (1 - abs(*split_vel)) * signbit(*split_vel) * state->t.delta_time;
-    cout << *total_vel << "\t" << *split_vel << "\t" << (1 - *split_vel) * -1 << "\t" << *total_vel * *split_vel << "\t" << *total_vel * (1 - abs(*split_vel)) * signbit(*split_vel) << "\n";
+    if (*y_pos - 10 <= 0) {
+        *angle = -*angle + 180;
+    } else if (*y_pos + 10 >= 480) {
+        *angle = -*angle - 180;
+    }
+
+    *x_pos += sin(*angle * M_PI / 180) * *speed;
+    *y_pos += cos(*angle * M_PI / 180) * *speed;
+
+    //cout << *x_pos << "\t" << *y_pos << "\t" << *angle << "\n";
     state->r.rect(*x_pos + 10, *y_pos + 10, *x_pos - 10, *y_pos - 10, Color(55, 55, 55));
+
+    Font* font = (Font*)(e->data.value(6));
+    char player1_score_buf[8];
+    itoa(*player1_score, player1_score_buf, 10);
+    char player2_score_buf[8];
+    itoa(*player2_score, player2_score_buf, 10);
+
+    state->r.text(player1_score_buf, 10, 10, 50, 50, font, Color(255, 255, 255));
+    state->r.text(player2_score_buf, 200, 10, 80, 50, font, Color(255, 255, 255));
 }
 
 int main() {
@@ -348,8 +397,8 @@ int main() {
     Element player2 = Element("player2", &player_sizes, 1, update_player2);
     state.add_element(&player2);
 
-    size_t ball_sizes[6] = {sizeof(float*), sizeof(float*), sizeof(float), sizeof(float), sizeof(float), sizeof(float)};
-    Element ball = Element("ball", ball_sizes, 6, update_ball, init_ball);
+    size_t ball_sizes[9] = {sizeof(float*), sizeof(float*), sizeof(float), sizeof(float), sizeof(float), sizeof(float), sizeof(Font), sizeof(int), sizeof(int)};
+    Element ball = Element("ball", ball_sizes, 9, update_ball, init_ball);
     state.add_element(&ball);
 
     while (!state.quit) {
