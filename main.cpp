@@ -6,6 +6,8 @@
 #include "SDL.h"
 #include "SDL_ttf.h"
 
+#define FPS 60.0f
+
 using namespace std;
 
 class Color {
@@ -76,6 +78,7 @@ class State;
 
 class Element {
 public:
+    bool enable;
     const char* name;
     void (*update_fn)(Element*, State*);
     void (*init_fn)(Element*, State*);
@@ -87,6 +90,7 @@ public:
         this->data = Data(nullptr, nullptr, NULL);
         this->update_fn = update_fn;
         this->init_fn = nullptr;
+        this->enable = true;
     }
 
     Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*)) {
@@ -94,6 +98,7 @@ public:
         this->data = Data(sizes, num_sizes);
         this->update_fn = update_fn;
         this->init_fn = nullptr;
+        this->enable = true;
     }
 
     Element(const char* name, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*)) {
@@ -101,6 +106,7 @@ public:
         this->data = Data(nullptr, nullptr, NULL);
         this->update_fn = update_fn;
         this->init_fn = init_fn;
+        this->enable = true;
     }
 
     Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*)) {
@@ -108,6 +114,39 @@ public:
         this->data = Data(sizes, num_sizes);
         this->update_fn = update_fn;
         this->init_fn = init_fn;
+        this->enable = true;
+    }
+
+    Element(const char* name, void (*update_fn)(Element*, State*), bool enable) {
+        this->name = name;
+        this->data = Data(nullptr, nullptr, NULL);
+        this->update_fn = update_fn;
+        this->init_fn = nullptr;
+        this->enable = enable;
+    }
+
+    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), bool enable) {
+        this->name = name;
+        this->data = Data(sizes, num_sizes);
+        this->update_fn = update_fn;
+        this->init_fn = nullptr;
+        this->enable = enable;
+    }
+
+    Element(const char* name, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*), bool enable) {
+        this->name = name;
+        this->data = Data(nullptr, nullptr, NULL);
+        this->update_fn = update_fn;
+        this->init_fn = init_fn;
+        this->enable = enable;
+    }
+
+    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*), bool enable) {
+        this->name = name;
+        this->data = Data(sizes, num_sizes);
+        this->update_fn = update_fn;
+        this->init_fn = init_fn;
+        this->enable = enable;
     }
 
     void update(State* state) {
@@ -190,10 +229,10 @@ public:
     }
 
     void text(const char* text, int x, int y, int w, int h, Font* font, Color fill) {
-        SDL_Surface* text_surface = TTF_RenderText_Solid_Wrapped(font->font, text, fill.sdl(), 0);
+        SDL_Surface* text_surface = TTF_RenderText_Blended_Wrapped(font->font, text, fill.sdl(), 0);
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(this->renderer, text_surface);
-        SDL_Rect src_rect = {0, 0, w, h};
-        SDL_Rect dst_rect = {x, y, x + w, y + h};
+        SDL_Rect src_rect = {0, 0, text_surface->w, text_surface->h};
+        SDL_Rect dst_rect = {x, y, w, h};
         SDL_RenderCopy(this->renderer, text_texture, &src_rect, &dst_rect);
         SDL_FreeSurface(text_surface);
     }
@@ -225,11 +264,26 @@ class Inputs {
 };
 
 class Time {
+private:
+    float old_time;
+    float current_time;
 public:
     float delta_time;
 
     Time() {
-        this->delta_time = 0.05;
+        this->old_time = 0.f;
+        this->current_time = 0.f;
+        this->delta_time = 0.f;
+    }
+
+    void update_dt1() {
+        this->old_time = this->current_time;
+        this->current_time = SDL_GetPerformanceCounter();
+        this->delta_time = (double)((this->current_time - this->old_time) / (double)SDL_GetPerformanceFrequency());
+    }
+
+    void update_dt2() {
+        SDL_Delay(1000.0f / (FPS - this->delta_time));
     }
 };
 
@@ -285,6 +339,8 @@ public:
             break;
         }
 
+        t.update_dt1();
+
         i.update_input();
 
         for (int i = 0; i < this->init_list.size(); i++) {
@@ -292,15 +348,24 @@ public:
         }
         init_list.clear();
         for (int i = 0; i < this->update_list.size(); i++) {
-            this->update_list[i]->update(this);
+            if (update_list[i]->enable) {
+                this->update_list[i]->update(this);
+            }
         }
         
         r.draw();
+
+        t.update_dt2();
     }
 };
 
 void update_background(Element* e, State* state) {
     state->r.rect(0, 0, 640, 480, Color(69, 69, 69));
+    state->r.rect(315, 0, 325, 480, Color(60, 60, 60));
+}
+
+void update_play_button(Element* e, State* state) {
+    state->r.rect(200, 215, 440, 275, Color(62, 62, 62));
 }
 
 void update_player1(Element* e, State* state) {
@@ -309,10 +374,10 @@ void update_player1(Element* e, State* state) {
     state->r.rect(20, *y + 30, 30, *y - 30, Color(40, 40, 40));
 
     if (state->i.keyboard.keys[SDL_SCANCODE_W] && *y > 40) {
-        *y -= 0.1;
+        *y -= 250 * state->t.delta_time;
     }
     if (state->i.keyboard.keys[SDL_SCANCODE_S] && *y < 440) {
-        *y += 0.1;
+        *y += 250 * state->t.delta_time;
     }
 }
 
@@ -321,10 +386,10 @@ void update_player2(Element* e, State* state) {
     state->r.rect(610, *y + 30, 620, *y - 30, Color(40, 40, 40));
 
     if (state->i.keyboard.keys[SDL_SCANCODE_UP] && *y > 40) {
-        *y -= 0.1;
+        *y -= 250 * state->t.delta_time;
     }
     if (state->i.keyboard.keys[SDL_SCANCODE_DOWN] && *y < 440) {
-        *y += 0.1;
+        *y += 250 * state->t.delta_time;
     }
 }
 
@@ -342,9 +407,9 @@ void init_ball(Element* e, State* state) {
     float* angle = (float*)(e->data.value(4));
     float* speed = (float*)(e->data.value(5));
     *angle = -35;
-    *speed = 0.1;
+    *speed = 5;
     Font* font = (Font*)(e->data.value(6));
-    *font = Font("RobotoMono-Regular.ttf", 14);
+    *font = Font("RobotoMono-Regular.ttf", 50);
 }
 
 void update_ball(Element* e, State* state) {
@@ -371,7 +436,19 @@ void update_ball(Element* e, State* state) {
     *x_pos += sin(*angle * M_PI / 180) * *speed;
     *y_pos += cos(*angle * M_PI / 180) * *speed;
 
-    //cout << *x_pos << "\t" << *y_pos << "\t" << *angle << "\n";
+    if (*x_pos - 10 <= 0) {
+        *player2_score += 1;
+        *speed += 0.5;
+        *x_pos = 320;
+        *y_pos = 240;
+    } else if (*x_pos + 10 >= 640) {
+        *player1_score += 1;
+        *speed += 0.5;
+        *x_pos = 320;
+        *y_pos = 240;
+    }
+
+    //cout << *x_pos << "\t" << *y_pos << "\n";
     state->r.rect(*x_pos + 10, *y_pos + 10, *x_pos - 10, *y_pos - 10, Color(55, 55, 55));
 
     Font* font = (Font*)(e->data.value(6));
@@ -380,8 +457,8 @@ void update_ball(Element* e, State* state) {
     char player2_score_buf[8];
     itoa(*player2_score, player2_score_buf, 10);
 
-    state->r.text(player1_score_buf, 10, 10, 50, 50, font, Color(255, 255, 255));
-    state->r.text(player2_score_buf, 200, 10, 80, 50, font, Color(255, 255, 255));
+    state->r.text(player1_score_buf, 240, 10, 50, 50, font, Color(255, 255, 255));
+    state->r.text(player2_score_buf, 350, 10, 50, 50, font, Color(255, 255, 255));
 }
 
 int main() {
@@ -390,15 +467,18 @@ int main() {
     Element background = Element("background", update_background);
     state.add_element(&background);
 
+    Element play_button = Element("play_button", update_play_button);
+    state.add_element(&play_button);
+
     size_t player_sizes = sizeof(float); 
-    Element player1 = Element("player1", &player_sizes, 1, update_player1);
+    Element player1 = Element("player1", &player_sizes, 1, update_player1, false);
     state.add_element(&player1);
 
-    Element player2 = Element("player2", &player_sizes, 1, update_player2);
+    Element player2 = Element("player2", &player_sizes, 1, update_player2, false);
     state.add_element(&player2);
 
     size_t ball_sizes[9] = {sizeof(float*), sizeof(float*), sizeof(float), sizeof(float), sizeof(float), sizeof(float), sizeof(Font), sizeof(int), sizeof(int)};
-    Element ball = Element("ball", ball_sizes, 9, update_ball, init_ball);
+    Element ball = Element("ball", ball_sizes, 9, update_ball, init_ball, false);
     state.add_element(&ball);
 
     while (!state.quit) {
@@ -406,6 +486,7 @@ int main() {
     }
 
     background.destroy();
+    play_button.destroy();
     player1.destroy();
     player2.destroy();
     ball.destroy();
