@@ -364,8 +364,29 @@ void update_background(Element* e, State* state) {
     state->r.rect(315, 0, 325, 480, Color(60, 60, 60));
 }
 
+void init_play_button(Element* e, State* state) {
+    Font* font = (Font*)(e->data.value(0));
+    *font = Font("RobotoMono-Regular.ttf", 50);
+}
+
 void update_play_button(Element* e, State* state) {
+    Font* font = (Font*)(e->data.value(0));
     state->r.rect(200, 215, 440, 275, Color(62, 62, 62));
+    state->r.text("Play", 270, 220, 100, 50, font, Color(255, 255, 255));
+    float mx = state->i.mouse.x;
+    float my = state->i.mouse.y;
+    if (state->i.mouse.buttons[0] && mx >= 200 && mx <= 440 && my >= 215 && my <= 275) {
+        Element* player1 = state->get_element("player1");
+        *(float*)player1->data.value(0) = 240;
+        player1->enable = true;
+
+        Element* player2 = state->get_element("player2");
+        *(float*)player2->data.value(0) = 240;
+        player2->enable = true;
+
+        state->get_element("ball")->enable = true;
+        state->remove_element("play_button");
+    }
 }
 
 void update_player1(Element* e, State* state) {
@@ -408,8 +429,9 @@ void init_ball(Element* e, State* state) {
     float* speed = (float*)(e->data.value(5));
     *angle = -35;
     *speed = 5;
-    Font* font = (Font*)(e->data.value(6));
-    *font = Font("RobotoMono-Regular.ttf", 50);
+    *(Font*)(e->data.value(6)) = Font("RobotoMono-Regular.ttf", 50);
+    *(int*)(e->data.value(7)) = 0;
+    *(int*)(e->data.value(8)) = 0;
 }
 
 void update_ball(Element* e, State* state) {
@@ -462,12 +484,13 @@ void update_ball(Element* e, State* state) {
 }
 
 int main() {
-    State state = State("gui", 640, 480);
+    State state = State("pong", 640, 480);
 
     Element background = Element("background", update_background);
     state.add_element(&background);
 
-    Element play_button = Element("play_button", update_play_button);
+    size_t play_button_sizes = sizeof(Font);
+    Element play_button = Element("play_button", &play_button_sizes, 1, update_play_button, init_play_button);
     state.add_element(&play_button);
 
     size_t player_sizes = sizeof(float); 
