@@ -1,9 +1,9 @@
-#pragma once
-
 #include <vector>
 
 #include "SDL.h"
 #include "SDL_ttf.h"
+
+#include "mgui_math.cpp"
 
 #ifndef FPS
 #define FPS 60.0
@@ -234,6 +234,40 @@ public:
         SDL_Rect dst_rect = {x, y, w, h};
         SDL_RenderCopy(this->renderer, text_texture, &src_rect, &dst_rect);
         SDL_FreeSurface(text_surface);
+    }
+
+    void point(int x, int y, Color fill) {
+        SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
+        SDL_RenderDrawPoint(renderer, x, y);
+    }
+
+    void point(Vec2 a, Color fill) {
+        SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
+        SDL_RenderDrawPoint(renderer, a.x, a.y);
+    }
+
+    void cubic_bezier(Vec2 p0, Vec2 p1, Vec2 p2, Vec2 p3, int precision, Color fill) {
+        Vec2 q0 = Vec2(0, 0);
+        Vec2 q1 = Vec2(0, 0);
+        Vec2 q2 = Vec2(0, 0);
+
+        Vec2 r0 = Vec2(0, 0);
+        Vec2 r1 = Vec2(0, 0);
+
+        Vec2 b = Vec2(0, 0);
+
+        for (float t = 0.0f; t < 1.0f; t += 1 / powf(10, precision)) {
+            q0 = lerpVec2(p0, p1, t);
+            q1 = lerpVec2(p1, p2, t);
+            q2 = lerpVec2(p2, p3, t);
+        
+            r0 = lerpVec2(q0, q1, t);
+            r1 = lerpVec2(q1, q2, t);
+
+            b = lerpVec2(r0, r1, t);
+
+            point(b, fill);
+        }
     }
 
     void draw() {
