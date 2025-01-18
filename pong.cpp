@@ -45,10 +45,10 @@ void update_player1(Element* e, State* state) {
     state->r.rect(20, *y + 30, 30, *y - 30, Color(40, 40, 40));
 
     if (state->i.keyboard.keys[SDL_SCANCODE_W] && *y > 40) {
-        *y -= 250 * state->t.delta_time;
+        *y -= 250 * state->t.dt;
     }
     if (state->i.keyboard.keys[SDL_SCANCODE_S] && *y < 440) {
-        *y += 250 * state->t.delta_time;
+        *y += 250 * state->t.dt;
     }
 }
 
@@ -57,10 +57,10 @@ void update_player2(Element* e, State* state) {
     state->r.rect(610, *y + 30, 620, *y - 30, Color(40, 40, 40));
 
     if (state->i.keyboard.keys[SDL_SCANCODE_UP] && *y > 40) {
-        *y -= 250 * state->t.delta_time;
+        *y -= 250 * state->t.dt;
     }
     if (state->i.keyboard.keys[SDL_SCANCODE_DOWN] && *y < 440) {
-        *y += 250 * state->t.delta_time;
+        *y += 250 * state->t.dt;
     }
 }
 

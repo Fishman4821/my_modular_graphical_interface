@@ -246,6 +246,16 @@ public:
         SDL_RenderDrawPoint(renderer, a.x, a.y);
     }
 
+    void line(int x1, int y1, int x2, int y2, Color fill) {
+        SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
+        SDL_RenderDrawLine(this->renderer, x1, y1, x2, y2);
+    }
+
+    void line(Vec2 a, Vec2 b, Color fill) {
+        SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
+        SDL_RenderDrawLine(this->renderer, a.x, a.y, b.x, b.y);
+    }
+
     void cubic_bezier(Vec2 p0, Vec2 p1, Vec2 p2, Vec2 p3, int precision, Color fill) {
         Vec2 q0 = Vec2(0, 0);
         Vec2 q1 = Vec2(0, 0);
@@ -301,22 +311,25 @@ private:
     float old_time;
     float current_time;
 public:
-    float delta_time;
+    float dt;
 
     Time() {
         this->old_time = 0.f;
         this->current_time = 0.f;
-        this->delta_time = 0.f;
+        this->dt = 0.f;
     }
 
     void update_dt1() {
         this->old_time = this->current_time;
         this->current_time = SDL_GetPerformanceCounter();
-        this->delta_time = (double)((this->current_time - this->old_time) / (double)SDL_GetPerformanceFrequency());
+        this->dt = (double)((this->current_time - this->old_time) / (double)SDL_GetPerformanceFrequency());
+        if (this->dt > 500.0f) {
+            this->dt = 0.f;
+        }
     }
 
     void update_dt2() {
-        SDL_Delay(1000.0f / (FPS - this->delta_time));
+        SDL_Delay(1000.0f / (FPS - this->dt));
     }
 };
 
