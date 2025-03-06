@@ -172,7 +172,9 @@ public:
             to_sdl_window_flags(window_flags));
 
         this->renderer = SDL_CreateRenderer(window, -1, 0);
+#ifdef MGUI_TEXT
         TTF_Init();
+#endif
         this->window_surface = SDL_GetWindowSurface(this->window);
         SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_BLEND);
     }

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <string.h>
 
 #define SDL_MAIN_HANDLED
 #define FPS 120.0f
