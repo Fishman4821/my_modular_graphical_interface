@@ -5,6 +5,7 @@
 #define SDL_MAIN_HANDLED
 #define FPS 60.0f
 
+#define MGUI_TEXT
 #include "mgui.cpp"
 
 using namespace std;
@@ -125,9 +126,9 @@ void update_ball(Element* e, State* state) {
 
     Font* font = (Font*)(e->data.value(6));
     char player1_score_buf[8];
-    itoa(*player1_score, player1_score_buf, 10);
+    snprintf(player1_score_buf, 8, "%i", *player1_score);
     char player2_score_buf[8];
-    itoa(*player2_score, player2_score_buf, 10);
+    snprintf(player2_score_buf, 8, "%i", *player2_score);
 
     state->r.text(player1_score_buf, 240, 10, 50, 50, font, Color(255, 255, 255));
     state->r.text(player2_score_buf, 350, 10, 50, 50, font, Color(255, 255, 255));

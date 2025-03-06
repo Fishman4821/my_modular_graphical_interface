@@ -30,3 +30,11 @@
 *.exe
 *.out
 *.app
+
+./SDL
+./SDL_ttf
+
+*.pem
+
+start_vnc.sh
+end_vnc.sh
