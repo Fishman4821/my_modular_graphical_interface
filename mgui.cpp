@@ -161,6 +161,7 @@ public:
     }
 };
 
+#ifdef MGUI_TEXT
 class Font {
 public:
     TTF_Font* font;
@@ -186,6 +187,7 @@ public:
         );
     }
 };
+#endif
 
 class Renderer {
 private:
@@ -227,6 +229,7 @@ public:
         SDL_RenderGeometry(this->renderer, NULL, vertices, 3, NULL, 0);
     }
 
+#ifdef MGUI_TEXT
     void text(const char* text, int x, int y, int w, int h, Font* font, Color fill) {
         SDL_Surface* text_surface = TTF_RenderText_Blended_Wrapped(font->font, text, fill.sdl(), 0);
         SDL_Texture* text_texture = SDL_CreateTextureFromSurface(this->renderer, text_surface);
@@ -235,7 +238,7 @@ public:
         SDL_RenderCopy(this->renderer, text_texture, &src_rect, &dst_rect);
         SDL_FreeSurface(text_surface);
     }
-
+#endif
     void point(int x, int y, Color fill) {
         SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
         SDL_RenderDrawPoint(renderer, x, y);
