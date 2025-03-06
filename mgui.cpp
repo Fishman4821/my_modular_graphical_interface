@@ -1,9 +1,11 @@
 #include <vector>
+#include <iostream>
 
 #include "SDL.h"
 #include "SDL_ttf.h"
 
 #include "mgui_math.cpp"
+#include "mgui_keycodes.cpp"
 
 #ifndef FPS
 #define FPS 60.0
@@ -13,6 +15,7 @@ class Color {
 public:
     char r, g, b, a;
 
+    Color() = default;
     Color(char r, char g, char b, char a) {
         this->r = r;
         this->g = g;
@@ -81,70 +84,16 @@ public:
     const char* name;
     void (*update_fn)(Element*, State*);
     void (*init_fn)(Element*, State*);
+    void (*destruct_fn)(Element*, State*);
     Data data;
 
     Element() = default;
-    Element(const char* name, void (*update_fn)(Element*, State*)) {
-        this->name = name;
-        this->data = Data(nullptr, nullptr, 0);
-        this->update_fn = update_fn;
-        this->init_fn = nullptr;
-        this->enable = true;
-    }
-
-    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*)) {
-        this->name = name;
-        this->data = Data(sizes, num_sizes);
-        this->update_fn = update_fn;
-        this->init_fn = nullptr;
-        this->enable = true;
-    }
-
-    Element(const char* name, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*)) {
-        this->name = name;
-        this->data = Data(nullptr, nullptr, 0);
-        this->update_fn = update_fn;
-        this->init_fn = init_fn;
-        this->enable = true;
-    }
-
-    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*)) {
+    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*), void (*destruct_fn)(Element*, State*), bool enable) {
         this->name = name;
         this->data = Data(sizes, num_sizes);
         this->update_fn = update_fn;
         this->init_fn = init_fn;
-        this->enable = true;
-    }
-
-    Element(const char* name, void (*update_fn)(Element*, State*), bool enable) {
-        this->name = name;
-        this->data = Data(nullptr, nullptr, 0);
-        this->update_fn = update_fn;
-        this->init_fn = nullptr;
-        this->enable = enable;
-    }
-
-    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), bool enable) {
-        this->name = name;
-        this->data = Data(sizes, num_sizes);
-        this->update_fn = update_fn;
-        this->init_fn = nullptr;
-        this->enable = enable;
-    }
-
-    Element(const char* name, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*), bool enable) {
-        this->name = name;
-        this->data = Data(nullptr, nullptr, 0);
-        this->update_fn = update_fn;
-        this->init_fn = init_fn;
-        this->enable = enable;
-    }
-
-    Element(const char* name, size_t* sizes, int num_sizes, void (*update_fn)(Element*, State*), void (*init_fn)(Element*, State*), bool enable) {
-        this->name = name;
-        this->data = Data(sizes, num_sizes);
-        this->update_fn = update_fn;
-        this->init_fn = init_fn;
+        this->destruct_fn = destruct_fn;
         this->enable = enable;
     }
 
@@ -156,7 +105,8 @@ public:
         (init_fn)(this, state);
     }
 
-    void destroy() {
+    void destruct(State* state) {
+        (destruct_fn)(this, state);
         this->data.free_data();
     }
 };
@@ -187,26 +137,46 @@ public:
     }
 };
 
+enum StateFlags {
+    WINDOW_RESIZEABLE = 1,
+    INPUT_MULTI_THREADED = 2,
+    ELEMENTS_ENABLE = 4,
+};
+
 class Renderer {
 private:
     SDL_Window* window;
     SDL_Surface* window_surface;
     SDL_Renderer* renderer;
-    
+
+    Uint32 to_sdl_window_flags(Uint32 flags) {
+        Uint32 val = 0;
+        val = val | ((flags & WINDOW_RESIZEABLE) << 5); 
+        return val;
+    }
+
 public:
+    int w;
+    int h;
+
     Renderer() = default;
-    Renderer(const char* windowTitle, int width, int height) {
+    Renderer(const char* windowTitle, int width, int height, int window_flags) {
         SDL_Init(SDL_INIT_VIDEO);
         this->window = SDL_CreateWindow(
             windowTitle,
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
             width, height,
-            0);
+            to_sdl_window_flags(window_flags));
 
         this->renderer = SDL_CreateRenderer(window, -1, 0);
         TTF_Init();
         this->window_surface = SDL_GetWindowSurface(this->window);
+        SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_BLEND);
+    }
+
+    void fullscreen(bool val) {
+        SDL_SetWindowFullscreen(this->window, SDL_WINDOW_FULLSCREEN_DESKTOP & val);
     }
 
     void rect(int x1, int y1, int x2, int y2, Color fill) {
@@ -254,6 +224,7 @@ public:
     void line(Vec2 a, Vec2 b, Color fill) {
         SDL_SetRenderDrawColor(this->renderer, fill.r, fill.g, fill.b, fill.a);
         SDL_RenderDrawLine(this->renderer, a.x, a.y, b.x, b.y);
+        
     }
 
     void cubic_bezier(Vec2 p0, Vec2 p1, Vec2 p2, Vec2 p3, int precision, Color fill) {
@@ -280,15 +251,32 @@ public:
         }
     }
 
+    void update() {
+        SDL_GetWindowSize(this->window, &this->w, &this->h);
+    }
+
     void draw() {
         SDL_RenderPresent(this->renderer);
     }
 };
 
 class Inputs {
-    public:
+private:
+    int num_keys;
+    struct {
+        Uint8* keys;
+        ModKeyCode mods;
+    } previous_keyboard;
+
+    struct {
+        int x, y;
+        bool buttons[3];
+    } previous_mouse;
+
+public:
     struct {
         const Uint8* keys;
+        ModKeyCode mods;
     } keyboard;
 
     struct {
@@ -296,13 +284,65 @@ class Inputs {
         bool buttons[3];
     } mouse;
 
-    void update_input() {
-        this->keyboard.keys = SDL_GetKeyboardState(NULL);
+    Inputs() {
+        this->keyboard.keys = SDL_GetKeyboardState(&this->num_keys);
+        this->previous_keyboard.keys = (Uint8*)malloc(sizeof(Uint8) * this->num_keys);
+    }
 
+    void update_input_start() {
+        this->keyboard.keys = SDL_GetKeyboardState(NULL);
+        this->keyboard.mods = (ModKeyCode)SDL_GetModState();
         Uint32 mouse_state = SDL_GetMouseState(&this->mouse.x, &this->mouse.y);
         this->mouse.buttons[0] = mouse_state & SDL_BUTTON(SDL_BUTTON_LEFT);
         this->mouse.buttons[1] = mouse_state & SDL_BUTTON(SDL_BUTTON_MIDDLE);
         this->mouse.buttons[2] = mouse_state & SDL_BUTTON(SDL_BUTTON_RIGHT);
+    }
+
+    void update_input_end() {
+        memcpy(this->previous_keyboard.keys, this->keyboard.keys, sizeof(Uint8) * this->num_keys);
+        this->previous_keyboard.mods = this->keyboard.mods;
+        this->previous_mouse.x = mouse.x;
+        this->previous_mouse.y = mouse.y;
+        this->previous_mouse.buttons[0] = mouse.buttons[0];
+        this->previous_mouse.buttons[1] = mouse.buttons[1];
+        this->previous_mouse.buttons[2] = mouse.buttons[2];
+    }
+
+    bool get_key_pressed(KeyCode key) {
+        return (this->keyboard.keys[key] != 0) && (this->previous_keyboard.keys[key] == 0);
+    }
+
+    bool get_key_up(KeyCode key) {
+        return (this->keyboard.keys[key] == 0) && (this->previous_keyboard.keys[key] != 0);
+    }
+
+    bool get_key(KeyCode key) {
+        return this->keyboard.keys[key];
+    }
+
+    bool get_mod_key_pressed(ModKeyCode key) {
+        return (this->keyboard.mods & key != 0) && (this->previous_keyboard.mods & key == 0);
+    }
+
+    bool get_mod_key_up(ModKeyCode key) {
+        return (this->keyboard.mods & key == 0) && (this->previous_keyboard.mods & key != 0);
+
+    }
+
+    bool get_mod_key(ModKeyCode key) {
+        return this->keyboard.mods & key;
+    }
+
+    bool get_mouse_button_pressed(MouseButton mb) {
+        return (this->mouse.buttons[mb] != 0) && (this->previous_mouse.buttons[mb] == 0);
+    }
+
+    bool get_mouse_button_up(MouseButton mb) {
+        return (this->mouse.buttons[mb] == 0) && (this->previous_mouse.buttons[mb] != 0);
+    }
+
+    bool get_mouse_button(MouseButton mb) {
+        return this->mouse.buttons[mb];
     }
 };
 
@@ -337,6 +377,7 @@ class State {
 private:
     std::vector<Element*> update_list;
     std::vector<Element*> init_list;
+    int flags;
 
 public:
     bool quit;
@@ -345,10 +386,13 @@ public:
     Inputs i;
     Time t;
 
-    State(const char* windowTitle, int width, int height) {
+    State(const char* windowTitle, int width, int height, int flags) {
         this->quit = false;
-        this->r = Renderer(windowTitle, width, height);
+        this->flags = flags;
+        this->r = Renderer(windowTitle, width, height, flags);
         this->t = Time();
+        this->i.update_input_start();
+        this->i.update_input_end();
         this->update_list = {};
     }
 
@@ -362,6 +406,7 @@ public:
     void remove_element(char name[32]) {
         for (int i = 0; i < this->update_list.size(); i++) {
             if (this->update_list.at(i)->name == name) {
+                this->update_list[i]->destruct(this);
                 this->update_list.erase(this->update_list.begin() + i);
             }
         }
@@ -376,31 +421,50 @@ public:
         return nullptr;
     }
 
-    void update() {
+    void start_frame() {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 this->quit = true;
-            } 
+            } else if (event.type == SDL_WINDOWEVENT) {
+                this->r.update();
+            }
             break;
         }
 
-        t.update_dt1();
+        this->t.update_dt1();
 
-        i.update_input();
+        this->i.update_input_start();
 
+        if ((this->flags & ELEMENTS_ENABLE) != 0) {
+            this->update_elements();
+        }
+    }
+
+    void end_frame() {
+        this->r.draw();
+
+        this->t.update_dt2();
+
+        this->i.update_input_end();
+    }
+
+    void update_elements() {
         for (int i = 0; i < this->init_list.size(); i++) {
             this->init_list[i]->init(this);
         }
-        init_list.clear();
+        this->init_list.clear();
         for (int i = 0; i < this->update_list.size(); i++) {
-            if (update_list[i]->enable) {
+            if (this->update_list[i]->enable) {
                 this->update_list[i]->update(this);
             }
         }
-        
-        r.draw();
+    }
 
-        t.update_dt2();
+    void destroy_elements() {
+        for (int i = 0; i < this->update_list.size(); i++) {
+            this->update_list[i]->destruct(this);
+        }
+        this->update_list.clear();
     }
 };
