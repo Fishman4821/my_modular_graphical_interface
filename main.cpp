@@ -3,7 +3,7 @@
 #include <string.h>
 
 #define SDL_MAIN_HANDLED
-#define FPS 120.0f
+#define FPS 30.0f
 
 #include "mgui.cpp"
 
@@ -162,8 +162,10 @@ struct Object {
 };
 
 void delete_object(Object** objects, Object* object) {
-    if (object->prev != nullptr) {
+    if (object->prev == nullptr) {
         *objects = object->next;
+    } else {
+        object->prev->next = object->next;
     }
     if (object->next != nullptr) {
         object->next->prev = object->prev;
@@ -179,6 +181,7 @@ void append_object(Object** objects, Object object) {
         return;
     }
     Object* end;
+    Object* previous;
     Object* current = *objects;
     while (current != nullptr) {
         end = current;
@@ -921,7 +924,7 @@ void drag_selection() {
 void delete_selection(State* state, Object** objects, Node* nodes) {
     Object* a = *objects;
     while (a != nullptr) {
-        printf("%i\t %i, %i\t", rand(), a->prev != 0, a->next != 0);
+        printf("%i\t (%i, %i, (%i, %i), (%i, %i)) \t", rand(), a->x, a->y, a->prev != nullptr ? a->prev->x : 0, a->prev != nullptr ? a->prev->y : 0, a->next != nullptr ? a->next->x : 0, a->next != nullptr ? a->next->y : 0);
         a = a->next;
     }
     printf("%x\t%x\n", objects, *objects);
@@ -967,8 +970,8 @@ int main() {
     append_node(&nodes, {0b10, wires2, 0, 0});
     append_node(&nodes, {0b11, wires3, 0, 0});
     
-    int view_x = 0;
-    int view_y = 0;
+    int view_x = -275;
+    int view_y = -325;
     float zoom = 1;
 
     int selection_x = 0;
