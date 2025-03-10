@@ -3,7 +3,6 @@
 #include <string.h>
 
 #define SDL_MAIN_HANDLED
-#define FPS 30.0f
 
 #include "mgui.cpp"
 
@@ -56,8 +55,10 @@ struct Wire {
     Wire* next;
 };
 
-void delete_wire(Wire* wire) {
-    if (wire->prev != nullptr) {
+void delete_wire(Wire** wires, Wire* wire) {
+    if (wire->prev == nullptr) {
+        *wires = wire->next;
+    } else {
         wire->prev->next = wire->next;
     }
     if (wire->next != nullptr) {
@@ -100,13 +101,16 @@ struct Node {
     Node* next;
 };
 
-void delete_node(Node* node) {
-    if (node->prev != nullptr) {
+void delete_node(Node** nodes, Node* node) {
+    if (node->prev == nullptr) {
+        *nodes = node->next;
+    } else {
         node->prev->next = node->next;
     }
     if (node->next != nullptr) {
         node->next->prev = node->prev;
     }
+    free_wires(node->wires);
     free(node);
 }
 
@@ -921,7 +925,7 @@ void drag_selection() {
 
 }
 
-void delete_selection(State* state, Object** objects, Node* nodes) {
+void delete_selection(State* state, Object** objects, Node** nodes) {
     Object* a = *objects;
     while (a != nullptr) {
         printf("%i\t (%i, %i, (%i, %i), (%i, %i)) \t", rand(), a->x, a->y, a->prev != nullptr ? a->prev->x : 0, a->prev != nullptr ? a->prev->y : 0, a->next != nullptr ? a->next->x : 0, a->next != nullptr ? a->next->y : 0);
@@ -944,7 +948,7 @@ void delete_selection(State* state, Object** objects, Node* nodes) {
 }
 
 int main() {
-    State state = State("test", 640, 480, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
+    State state = State("test", 640, 480, 30, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
 
     const int grid_spacing = 100;
 
@@ -1018,7 +1022,7 @@ int main() {
         draw_grid(&state, view_x, view_y, zoom, grid_spacing);
         draw_objects_nodes(&state, objects, nodes, view_x, view_y, grid_spacing * zoom);
         update_draw_selection(&state, objects, nodes, &selection_x, &selection_y, view_x, view_y, grid_spacing * zoom);
-        delete_selection(&state, &objects, nodes);
+        delete_selection(&state, &objects, &nodes);
 
         int x = screenspace_to_gridspace(state.i.mouse.x, view_x, grid_spacing * zoom);
         int y = screenspace_to_gridspace(state.i.mouse.y, view_y, grid_spacing * zoom);

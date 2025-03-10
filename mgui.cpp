@@ -1,5 +1,6 @@
 #include <vector>
 #include <iostream>
+#include <string.h>
 
 #include "SDL.h"
 #include "SDL_ttf.h"
@@ -31,7 +32,7 @@ public:
     }
 
     SDL_Color sdl() {
-        return {this->r, this->b, this->g, this->a};
+        return {(unsigned char)this->r, (unsigned char)this->b, (unsigned char)this->g, (unsigned char)this->a};
     }
 };
 
@@ -357,8 +358,11 @@ private:
     float current_time;
 public:
     float dt;
+    float target_fps;
 
-    Time() {
+    Time() = default;
+    Time(float fps) {
+        this->target_fps = fps;
         this->old_time = 0.f;
         this->current_time = 0.f;
         this->dt = 0.f;
@@ -374,7 +378,7 @@ public:
     }
 
     void update_dt2() {
-        SDL_Delay(1000.0f / (FPS - this->dt));
+        SDL_Delay(1000.0f / (this->target_fps - this->dt));
     }
 };
 
@@ -391,11 +395,11 @@ public:
     Inputs i;
     Time t;
 
-    State(const char* windowTitle, int width, int height, int flags) {
+    State(const char* windowTitle, int width, int height, float fps, int flags) {
         this->quit = false;
         this->flags = flags;
         this->r = Renderer(windowTitle, width, height, flags);
-        this->t = Time();
+        this->t = Time(fps);
         this->i.update_input_start();
         this->i.update_input_end();
         this->update_list = {};
