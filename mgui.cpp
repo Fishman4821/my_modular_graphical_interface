@@ -356,9 +356,9 @@ class Time {
 private:
     float old_time;
     float current_time;
+    float target_fps;
 public:
     float dt;
-    float target_fps;
 
     Time() = default;
     Time(float fps) {
@@ -379,6 +379,14 @@ public:
 
     void update_dt2() {
         SDL_Delay(1000.0f / (this->target_fps - this->dt));
+    }
+
+    void set_target_fps(float fps) {
+        this->target_fps = fps;
+    }
+
+    float get_target_fps() {
+        return this->target_fps;
     }
 };
 
