@@ -357,6 +357,7 @@ private:
     float current_time;
 public:
     float dt;
+    float fps;
 
     Time() {
         this->old_time = 0.f;
@@ -371,6 +372,7 @@ public:
         if (this->dt > 500.0f) {
             this->dt = 0.f;
         }
+        fps = 1.0 / this->dt;
     }
 
     void update_dt2() {
