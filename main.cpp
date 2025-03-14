@@ -1095,79 +1095,8 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
     }
 }
 
-void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, int view_y, int zoom) {
-    static int center_x = 0;
-    static int center_y = 0;
-    
-    state->r.rect(center_x * zoom + view_x - 3, center_y * zoom + view_y - 3, center_x * zoom + view_x + 3, center_y * zoom + view_y + 3, Color(255, 0, 0, 255));
-
-    if (state->i.get_key_pressed(KC_R)) {
-        center_x = 0;
-        center_y = 0;
-
-        int l_bound_x = 0;
-        int l_bound_y = 0;
-        int u_bound_x = 0;
-        int u_bound_y = 0;
-
-        Object* object = objects;
-        while (object != nullptr) {
-            if (object->selected) {
-                if (object->x <= l_bound_x) {
-                    l_bound_x = object->x;
-                } else if (object->x >= u_bound_x) {
-                    u_bound_x = object->x;
-                }
-                if (object->y <= l_bound_y) {
-                    l_bound_y = object->y;
-                } else if (object->y >= u_bound_y) {
-                    u_bound_y = object->y;
-                }
-            }
-            object = object->next;
-        }
-
-        Node* node = nodes;
-        Wire* wire;
-        while (node != nullptr) {
-            wire = node->wires;
-            while (wire != nullptr) {
-                if (wire->selected) {
-                    if (wire->x1 <= l_bound_x) {
-                        l_bound_x = wire->x1;
-                    } else if (wire->x1 >= u_bound_x) {
-                        u_bound_x = wire->x1;
-                    }
-                    if (wire->y1 <= l_bound_y) {
-                        l_bound_y = wire->y1;
-                    } else if (wire->y1 >= u_bound_y) {
-                        u_bound_y = wire->y1;
-                    }
-                    if (wire->x2 <= l_bound_x) {
-                        l_bound_x = wire->x2;
-                    } else if (wire->x2 >= u_bound_x) {
-                        u_bound_x = wire->x2;
-                    }
-                    if (wire->y2 <= l_bound_y) {
-                        l_bound_y = wire->y2;
-                    } else if (wire->y2 >= u_bound_y) {
-                        u_bound_y = wire->y2;
-                    }
-                }
-                wire = wire->next;
-            }
-            node = node->next;
-        }
-
-        center_x = l_bound_x + (u_bound_x - l_bound_x) / 2;
-        center_y = l_bound_y + (u_bound_y - l_bound_y) / 2;
-
-        printf("(%i, %i), (%i, %i), (%i, %i)\n", l_bound_x, l_bound_y, u_bound_x, u_bound_y, center_x, center_y);
-    }
-}
-
 int main() {
-    State state = State("test", 640, 480, 30, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
+    State state = State("test", 640, 480, 120, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
 
     const int grid_spacing = 100;
 
@@ -1214,13 +1143,6 @@ int main() {
         gs_mouse_x = screenspace_to_gridspace(state.i.mouse.x, view_x, grid_spacing * zoom);
         gs_mouse_y = screenspace_to_gridspace(state.i.mouse.y, view_y, grid_spacing * zoom);
 
-        if (state.i.get_key_pressed(KC_R)) {
-            objects[0].rotation++;
-            if (objects[0].rotation == 4) {
-                objects[0].rotation = 0;
-            }
-        }
-
         if (state.i.get_key_pressed(KC_T)) {
             if (objects[0].type == 'N') { objects[0].type = 'P'; } else
             if (objects[0].type == 'P') { objects[0].type = '+'; } else 
@@ -1255,9 +1177,10 @@ int main() {
         drag_selection(&state, objects, nodes, &drag_x, &drag_y, &prev_drag_x, &prev_drag_y, gs_mouse_x, gs_mouse_y);
         delete_selection(&state, &objects, &nodes);
         place_object(&state, &objects, gs_mouse_x, gs_mouse_y);
+        rotate_selection(&state, objects, nodes, view_x, view_y, zoom);
 
         
-        printf("%i, %i\n", gs_mouse_x, gs_mouse_y);
+        //printf("%i, %i\n", gs_mouse_x, gs_mouse_y);
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
         //printf("%f\t\t%f\n", state.t.dt, state.t.fps);
