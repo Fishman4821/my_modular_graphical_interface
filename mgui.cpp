@@ -172,7 +172,7 @@ public:
             width, height,
             to_sdl_window_flags(window_flags));
 
-        this->renderer = SDL_CreateRenderer(window, -1, 0);
+        this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 #ifdef MGUI_TEXT
         TTF_Init();
 #endif
@@ -359,6 +359,7 @@ private:
     float target_fps;
 public:
     float dt;
+    float fps;
 
     Time() = default;
     Time(float fps) {
@@ -372,13 +373,14 @@ public:
         this->old_time = this->current_time;
         this->current_time = SDL_GetPerformanceCounter();
         this->dt = (double)((this->current_time - this->old_time) / (double)SDL_GetPerformanceFrequency());
+        this->fps = 1.0 / this->dt;
         if (this->dt > 500.0f) {
             this->dt = 0.f;
         }
     }
 
     void update_dt2() {
-        SDL_Delay(1000.0f / (this->target_fps - this->dt));
+        //SDL_Delay(1000.0f / (this->target_fps - this->dt));
     }
 
     void set_target_fps(float fps) {

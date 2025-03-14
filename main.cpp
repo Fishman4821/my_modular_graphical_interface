@@ -946,7 +946,7 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
     
     state->r.rect(center_x * zoom + view_x - 3, center_y * zoom + view_y - 3, center_x * zoom + view_x + 3, center_y * zoom + view_y + 3, Color(255, 0, 0, 255));
 
-    if (state->i.get_key_pressed(KC_R)) {
+    if (state->i.get_key(KC_R)) {
         center_x = 0;
         center_y = 0;
 
@@ -956,6 +956,9 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
         int u_bound_y = 0;
 
         Object* object = objects;
+        Node* node = nodes;
+        Wire* wire;
+        
         while (object != nullptr) {
             if (object->selected) {
                 if (object->x <= l_bound_x) {
@@ -972,8 +975,6 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
             object = object->next;
         }
 
-        Node* node = nodes;
-        Wire* wire;
         while (node != nullptr) {
             wire = node->wires;
             while (wire != nullptr) {
@@ -1008,6 +1009,50 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
         center_y = l_bound_y + (u_bound_y - l_bound_y) / 2;
 
         printf("(%i, %i), (%i, %i), (%i, %i)\n", l_bound_x, l_bound_y, u_bound_x, u_bound_y, center_x, center_y);
+        if (state->i.get_key_pressed(KC_F)) {
+        
+        int temp;
+
+        object = objects;
+        while (object != nullptr) {
+            if (object->selected) {
+                object->x -= center_x;
+                object->y -= center_y;
+                temp = -object->y;
+                object->y = object->x;
+                object->x = temp;
+                object->x += center_x;
+                object->y += center_y;
+            }
+            object = object->next;
+        }
+
+        node = nodes;
+        while (node != nullptr) {
+            wire = node->wires;
+            while (wire != nullptr) {
+                if (wire->selected) {
+                    wire->x1 -= center_x;
+                    wire->y1 -= center_x;
+                    temp = -wire->y1;
+                    wire->y1 = wire->x1;
+                    wire->x1 = temp;
+                    wire->x1 += center_x;
+                    wire->y1 += center_y;
+                    
+                    wire->x2 -= center_x;
+                    wire->y2 -= center_x;
+                    temp = -wire->y2;
+                    wire->y2 = wire->x2;
+                    wire->x2 = temp;
+                    wire->x2 += center_x;
+                    wire->y2 += center_y;
+                }
+                wire = wire->next;
+            }
+            node = node->next;
+        }
+    }
     }
 }
 
@@ -1088,6 +1133,7 @@ int main() {
         delete_selection(&state, &objects, &nodes);
         rotate_selection(&state, objects, nodes, view_x, view_y, grid_spacing * zoom);
         
+        //printf("%f\t%f\n", state.t.dt, state.t.fps);
 
         state.r.rect(gs_m_x * grid_spacing * zoom + view_x - 5, gs_m_y * grid_spacing * zoom + view_y - 5, gs_m_x * grid_spacing * zoom + view_x + 5, gs_m_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
