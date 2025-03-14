@@ -1224,8 +1224,6 @@ int main() {
         place_object(&state, &objects, gs_mouse_x, gs_mouse_y);
         rotate_selection(&state, objects, nodes, view_x, view_y, zoom);
 
-                //printf("%f\t%f\n", state.t.dt, state.t.fps);
-
         //printf("%i, %i\n", gs_mouse_x, gs_mouse_y);
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
