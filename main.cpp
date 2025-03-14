@@ -143,8 +143,9 @@ void free_nodes(Node* nodes) {
 }
 
 Node* get_node(Node* nodes, int index) {
+    static int _i = 0;
     Node* current = nodes;
-    for (int i = 0; i < index; i++) {
+    for (_i = 0; _i < index; _i++) {
         if (current->next != nullptr) { 
             current = current->next;
         } else {
@@ -917,27 +918,110 @@ void update_draw_selection(State* state, Object* objects, Node* nodes, int* sele
     }
 }
 
-int screenspace_to_gridspace(int n, int view, int zoom) {
+inline int screenspace_to_gridspace(int n, int view, int zoom) {
     return round((float)(n - view) / (float)zoom);
 }
 
-void drag_selection() {
+void drag_selection(State* state, Object* objects, Node* nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
+    if (state->i.get_mouse_button_pressed(MB_LEFT)) {
+        *prev_drag_x = m_x;
+        *prev_drag_y = m_y;
+    }
+    
+    if (state->i.get_mouse_button(MB_LEFT)) {
+        *drag_x = m_x;
+        *drag_y = m_y;
+        int delta_x = *drag_x - *prev_drag_x;
+        int delta_y = *drag_y - *prev_drag_y;
+        if (drag_x - prev_drag_x != 0 || drag_y - prev_drag_y != 0) {   
+            Object* object = objects;
+            while (object != nullptr) {
+                if (object->selected) {
+                    object->x += delta_x;
+                    object->y += delta_y;
+                }
+                
+                object = object->next;
+            }
 
+            Node* node = nodes;
+            Wire* wire;
+            while (node != nullptr) {
+                wire = node->wires;
+                while (wire != nullptr) {
+                    if (wire->selected) {
+                        wire->x1 += delta_x;
+                        wire->y1 += delta_y;
+                        wire->x2 += delta_x;
+                        wire->y2 += delta_y;
+                    }
+
+                    wire = wire->next;
+                }
+
+                node = node->next;
+            }
+        }
+
+        *prev_drag_x = *drag_x;
+        *prev_drag_y = *drag_y;
+    }
 }
 
 void delete_selection(State* state, Object** objects, Node** nodes) {
     if (state->i.get_key_pressed(KC_BACKSPACE)) {
         Object* object = *objects;
-        Object* next;
+        Object* next_object;
         while (object != nullptr) {
-            next = object->next;
+            next_object = object->next;
             
             if (object->selected) {
                 delete_object(objects, object);
             }
-            object = next;
+            object = next_object;
+        }
+
+        Node* node = *nodes;
+        Node* next_node;
+        Wire* wire; 
+        Wire* next_wire;
+        while (node != nullptr) {
+            next_node = node->next;
+            
+            wire = node->wires;
+            while (wire != nullptr) {
+                next_wire = wire->next;
+
+                if (wire->selected) {
+                    delete_wire(&node->wires, wire);
+                }
+
+                wire = next_wire;
+            }
+
+            if (node->wires == nullptr) {
+                delete_node(nodes, node);
+            }
+
+            node = next_node;
         }
     }
+}
+
+void place_object(State* state, Object** objects, int m_x, int m_y) {
+    if (state->i.get_key_pressed(KC_1)) {
+        append_object(objects, {'N', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    } else if (state->i.get_key_pressed(KC_2)) {
+        append_object(objects, {'P', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    } else if (state->i.get_key_pressed(KC_3)) {
+        append_object(objects, {'+', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    } else if (state->i.get_key_pressed(KC_4)) {
+        append_object(objects, {'-', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    } else if (state->i.get_key_pressed(KC_5)) {
+        append_object(objects, {'I', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    } else if (state->i.get_key_pressed(KC_6)) {
+        append_object(objects, {'O', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+    }    
 }
 
 void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, int view_y, int zoom) {
@@ -1057,7 +1141,7 @@ void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, in
 }
 
 int main() {
-    State state = State("test", 640, 480, 30, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
+    State state = State("test", 640, 480, 120, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
 
     const int grid_spacing = 100;
 
@@ -1083,21 +1167,26 @@ int main() {
     append_node(&nodes, {0b10, wires2, 0, 0});
     append_node(&nodes, {0b11, wires3, 0, 0});
     
-    int view_x = -275;
-    int view_y = -325;
+    int view_x = 0;
+    int view_y = 0;
     float zoom = 1;
 
     int selection_x = 0;
     int selection_y = 0;
 
-    int gs_m_x = 0;
-    int gs_m_y = 0;
+    int prev_drag_x = 0;
+    int prev_drag_y = 0;
+    int drag_x = 0;
+    int drag_y = 0;
+
+    int gs_mouse_x = 0;
+    int gs_mouse_y = 0;
 
     while (!state.quit) {
         state.start_frame();
 
-        gs_m_x = screenspace_to_gridspace(state.i.mouse.x, view_x, grid_spacing * zoom);
-        gs_m_y = screenspace_to_gridspace(state.i.mouse.y, view_y, grid_spacing * zoom);
+        gs_mouse_x = screenspace_to_gridspace(state.i.mouse.x, view_x, grid_spacing * zoom);
+        gs_mouse_y = screenspace_to_gridspace(state.i.mouse.y, view_y, grid_spacing * zoom);
 
         if (state.i.get_key_pressed(KC_T)) {
             if (objects[0].type == 'N') { objects[0].type = 'P'; } else
@@ -1130,12 +1219,17 @@ int main() {
         draw_grid(&state, view_x, view_y, zoom, grid_spacing);
         draw_objects_nodes(&state, objects, nodes, view_x, view_y, grid_spacing * zoom);
         update_draw_selection(&state, objects, nodes, &selection_x, &selection_y, view_x, view_y, grid_spacing * zoom);
+        drag_selection(&state, objects, nodes, &drag_x, &drag_y, &prev_drag_x, &prev_drag_y, gs_mouse_x, gs_mouse_y);
         delete_selection(&state, &objects, &nodes);
-        rotate_selection(&state, objects, nodes, view_x, view_y, grid_spacing * zoom);
-        
-        //printf("%f\t%f\n", state.t.dt, state.t.fps);
+        place_object(&state, &objects, gs_mouse_x, gs_mouse_y);
+        rotate_selection(&state, objects, nodes, view_x, view_y, zoom);
 
-        state.r.rect(gs_m_x * grid_spacing * zoom + view_x - 5, gs_m_y * grid_spacing * zoom + view_y - 5, gs_m_x * grid_spacing * zoom + view_x + 5, gs_m_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
+                //printf("%f\t%f\n", state.t.dt, state.t.fps);
+
+        //printf("%i, %i\n", gs_mouse_x, gs_mouse_y);
+        state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
+
+        //printf("%f\t\t%f\n", state.t.dt, state.t.fps);
 
         state.end_frame();
     }
