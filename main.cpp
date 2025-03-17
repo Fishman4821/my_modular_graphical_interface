@@ -67,6 +67,19 @@ void delete_wire(Wire** wires, Wire* wire) {
     free(wire);
 }
 
+void delist_wire(Wire** wires, Wire* wire) {
+    if (wire->prev == nullptr) {
+        *wires = wire->next;
+    } else {
+        wire->prev->next = wire->next;
+    }
+    if (wire->next != nullptr) {
+        wire->next->prev = wire->prev;
+    }
+    wire->prev = 0;
+    wire->next = 0;
+}
+
 void append_wire(Wire** wires, Wire wire) {
     Wire* next = (Wire*)malloc(sizeof(Wire));
     *next = wire;
@@ -85,12 +98,14 @@ void append_wire(Wire** wires, Wire wire) {
 }
 
 void free_wires(Wire* wires) {
-    Wire* current = wires;
-    Wire* temp;
-    while (current != nullptr) {
-        temp = current->next;
-        free(current);
-        current = temp;
+    if (wires != nullptr) {
+        Wire* current = wires;
+        Wire* temp;
+        while (current != nullptr) {
+            temp = current->next;
+            free(current);
+            current = temp;
+        }
     }
 }
 
@@ -290,7 +305,7 @@ void draw_nmos(State* state, Object* object, Node* nodes, int view_x, int view_y
     const Color* a_color;
     Node* b = get_node(nodes, object->b);
     const Color* b_color;
-    if (a->state == 0b00) {
+    if (a == nullptr || a->state == 0b00) {
         a_color = &wire_disconnected;
     } else if (a->state == 0b01) {
         a_color = &wire_off;
@@ -300,7 +315,7 @@ void draw_nmos(State* state, Object* object, Node* nodes, int view_x, int view_y
         a_color = &wire_conflicted;
     }
 
-    if (b->state == 0b00) {
+    if (b == nullptr || b->state == 0b00) {
         b_color = &wire_disconnected;
     } else if (b->state == 0b01) {
         b_color = &wire_off;
@@ -412,7 +427,7 @@ void draw_pmos(State* state, Object* object, Node* nodes, int view_x, int view_y
     const Color* a_color;
     Node* b = get_node(nodes, object->b);
     const Color* b_color;
-    if (a->state == 0b00) {
+    if (a == nullptr || a->state == 0b00) {
         a_color = &wire_disconnected;
     } else if (a->state == 0b01) {
         a_color = &wire_off;
@@ -422,7 +437,7 @@ void draw_pmos(State* state, Object* object, Node* nodes, int view_x, int view_y
         a_color = &wire_conflicted;
     }
 
-    if (b->state == 0b00) {
+    if (b == nullptr || b->state == 0b00) {
         b_color = &wire_disconnected;
     } else if (b->state == 0b01) {
         b_color = &wire_off;
@@ -687,7 +702,7 @@ void draw_output(State* state, Object* object, Node* nodes, int view_x, int view
     Node* a = get_node(nodes, object->a);
     const Color* a_color;
     
-    if (a->state == 0b00) {
+    if (a == nullptr || a->state == 0b00) {
         a_color = &wire_disconnected;
     } else if (a->state == 0b01) {
         a_color = &wire_off;
@@ -922,7 +937,120 @@ inline int screenspace_to_gridspace(int n, int view, int zoom) {
     return round((float)(n - view) / (float)zoom);
 }
 
-void drag_selection(State* state, Object* objects, Node* nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
+bool wires_intersect(Wire* wire1, Wire* wire2) {
+    Wire a, b;
+    memcpy(&a, wire1, sizeof(Wire));
+    memcpy(&b, wire2, sizeof(Wire));
+    int temp;
+    if (a.x1 > a.x2) {
+        temp = a.x1;
+        a.x1 = a.x2;
+        a.x2 = temp;
+    }
+    if (a.y1 > a.y2) {
+        temp = a.y1;
+        a.y1 = a.y2;
+        a.y2 = temp;
+    }
+    if (b.x1 > b.x2) {
+        temp = b.x1;
+        b.x1 = b.x2;
+        b.x2 = temp;
+    }
+    if (b.y1 > b.y2) {
+        temp = b.y1;
+        b.y1 = b.y2;
+        b.y2 = temp;
+    }
+    return a.x1 <= b.x1 && a.x2 >= b.x2 && a.y1 <= b.y1 && a.y2 >= b.y2;
+}
+
+struct WireSplit {
+    Node* n;
+    Wire* w;
+    WireSplit* next;
+};
+
+void append_split(WireSplit** splits, WireSplit split) {
+    WireSplit* next = (WireSplit*)malloc(sizeof(WireSplit));
+    *next = split;
+    if (*splits == nullptr) {
+        *splits = next;
+        return;
+    }
+    WireSplit* end;
+    WireSplit* current = *splits;
+    while (current != nullptr) {
+        end = current;
+        current = current->next;
+    }
+    end->next = next;
+}
+
+void cull_nodes(Node** nodes) {
+    Node* node = *nodes;
+    while (node != nullptr) {
+        if (node->wires == nullptr) {
+            delete_node(nodes, node);
+        }
+        node = node->next;
+    }
+}
+
+void split_nodes(Node** nodes) {
+    Node* n1 = *nodes;
+    Wire* w1;
+    Wire* w2;
+    WireSplit* splits = 0;
+    while (n1 != nullptr) { // find splits
+        w1 = n1->wires;
+        while (w1 != nullptr) {
+            w2 = n1->wires;
+            while (w2 != nullptr) {
+                if (w1 != w2 && !wires_intersect(w1, w2)) {
+                    append_split(&splits, {n1, w2, 0});
+                }
+                w2 = w2->next;
+            }
+            w1 = w1->next;
+        }
+        n1 = n1->next;
+    }
+
+    WireSplit* split = splits;
+    while (split != nullptr) { // process splits
+        delist_wire(&split->n->wires, split->w);
+        append_node(nodes, {0b00, split->w, 0, 0});
+        split = split->next;
+    }
+
+    split = splits;
+    WireSplit* next;
+    while (split != nullptr) {
+        next = split->next;
+        printf("(%i, %i, %i, %i)\t", split->w->x1, split->w->y1, split->w->x2, split->w->y2);
+        free(split);
+        split = next;
+    }
+    printf("\n");
+}
+
+void merge_nodes(Node** nodes) {
+    
+}
+
+void connect_nodes(Object* objects, Node* nodes) {
+
+}
+
+void update_nodes(State* state, Object* objects, Node** nodes) {
+    split_nodes(nodes);
+    cull_nodes(nodes);
+    merge_nodes(nodes);
+    connect_nodes(objects, *nodes);
+}
+
+void drag_selection(State* state, Object* objects, Node** nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
     if (state->i.get_mouse_button_pressed(MB_LEFT)) {
         *prev_drag_x = m_x;
         *prev_drag_y = m_y;
@@ -944,7 +1072,7 @@ void drag_selection(State* state, Object* objects, Node* nodes, int* drag_x, int
                 object = object->next;
             }
 
-            Node* node = nodes;
+            Node* node = *nodes;
             Wire* wire;
             while (node != nullptr) {
                 wire = node->wires;
@@ -965,6 +1093,10 @@ void drag_selection(State* state, Object* objects, Node* nodes, int* drag_x, int
 
         *prev_drag_x = *drag_x;
         *prev_drag_y = *drag_y;
+    }
+
+    if (state->i.get_mouse_button_up(MB_LEFT)) {
+        update_nodes(state, objects, nodes);
     }
 }
 
@@ -1005,138 +1137,67 @@ void delete_selection(State* state, Object** objects, Node** nodes) {
 
             node = next_node;
         }
+        update_nodes(state, *objects, nodes);
     }
 }
 
-void place_object(State* state, Object** objects, int m_x, int m_y) {
+void place_object(State* state, Object** objects, Node** nodes, int m_x, int m_y) {
     if (state->i.get_key_pressed(KC_1)) {
         append_object(objects, {'N', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_2)) {
         append_object(objects, {'P', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_3)) {
         append_object(objects, {'+', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_4)) {
         append_object(objects, {'-', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_5)) {
         append_object(objects, {'I', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_6)) {
         append_object(objects, {'O', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        update_nodes(state, *objects, nodes);
     }    
 }
 
-void rotate_selection(State* state, Object* objects, Node* nodes, int view_x, int view_y, int zoom) {
-    static int center_x = 0;
-    static int center_y = 0;
-    
-    state->r.rect(center_x * zoom + view_x - 3, center_y * zoom + view_y - 3, center_x * zoom + view_x + 3, center_y * zoom + view_y + 3, Color(255, 0, 0, 255));
-
+void rotate_selection(State* state, Object* objects, Node** nodes) { // maybe implement actual selection rotation later
     if (state->i.get_key(KC_R)) {
-        center_x = 0;
-        center_y = 0;
-
-        int l_bound_x = 0;
-        int l_bound_y = 0;
-        int u_bound_x = 0;
-        int u_bound_y = 0;
-
         Object* object = objects;
-        Node* node = nodes;
-        Wire* wire;
-        
+
         while (object != nullptr) {
             if (object->selected) {
-                if (object->x <= l_bound_x) {
-                    l_bound_x = object->x;
-                } else if (object->x >= u_bound_x) {
-                    u_bound_x = object->x;
-                }
-                if (object->y <= l_bound_y) {
-                    l_bound_y = object->y;
-                } else if (object->y >= u_bound_y) {
-                    u_bound_y = object->y;
+                object->rotation++;
+                if (object->rotation == 4) {
+                    object->rotation = 0;
                 }
             }
             object = object->next;
         }
-
-        while (node != nullptr) {
-            wire = node->wires;
-            while (wire != nullptr) {
-                if (wire->selected) {
-                    if (wire->x1 <= l_bound_x) {
-                        l_bound_x = wire->x1;
-                    } else if (wire->x1 >= u_bound_x) {
-                        u_bound_x = wire->x1;
-                    }
-                    if (wire->y1 <= l_bound_y) {
-                        l_bound_y = wire->y1;
-                    } else if (wire->y1 >= u_bound_y) {
-                        u_bound_y = wire->y1;
-                    }
-                    if (wire->x2 <= l_bound_x) {
-                        l_bound_x = wire->x2;
-                    } else if (wire->x2 >= u_bound_x) {
-                        u_bound_x = wire->x2;
-                    }
-                    if (wire->y2 <= l_bound_y) {
-                        l_bound_y = wire->y2;
-                    } else if (wire->y2 >= u_bound_y) {
-                        u_bound_y = wire->y2;
-                    }
-                }
-                wire = wire->next;
-            }
-            node = node->next;
-        }
-
-        center_x = l_bound_x + (u_bound_x - l_bound_x) / 2;
-        center_y = l_bound_y + (u_bound_y - l_bound_y) / 2;
-
-        printf("(%i, %i), (%i, %i), (%i, %i)\n", l_bound_x, l_bound_y, u_bound_x, u_bound_y, center_x, center_y);
-        if (state->i.get_key_pressed(KC_F)) {
-        
-        int temp;
-
-        object = objects;
-        while (object != nullptr) {
-            if (object->selected) {
-                object->x -= center_x;
-                object->y -= center_y;
-                temp = -object->y;
-                object->y = object->x;
-                object->x = temp;
-                object->x += center_x;
-                object->y += center_y;
-            }
-            object = object->next;
-        }
-
-        node = nodes;
-        while (node != nullptr) {
-            wire = node->wires;
-            while (wire != nullptr) {
-                if (wire->selected) {
-                    wire->x1 -= center_x;
-                    wire->y1 -= center_x;
-                    temp = -wire->y1;
-                    wire->y1 = wire->x1;
-                    wire->x1 = temp;
-                    wire->x1 += center_x;
-                    wire->y1 += center_y;
-                    
-                    wire->x2 -= center_x;
-                    wire->y2 -= center_x;
-                    temp = -wire->y2;
-                    wire->y2 = wire->x2;
-                    wire->x2 = temp;
-                    wire->x2 += center_x;
-                    wire->y2 += center_y;
-                }
-                wire = wire->next;
-            }
-            node = node->next;
-        }
+        update_nodes(state, objects, nodes);
     }
+}
+
+void place_wire(State* state, Object* objects, Node** nodes, int m_x, int m_y) {
+    static Wire current = {0};
+    if (state->i.get_key_pressed(KC_T)) {
+        current.x1 = m_x;
+        current.y1 = m_y;
+    }
+    if (state->i.get_key_pressed(KC_G)) {
+        if (abs(current.x1 - m_x) > abs(current.y1 - m_y)) {
+            current.x2 = m_x;
+            current.y2 = current.y1;
+        } else {
+            current.x2 = current.x1;
+            current.y2 = m_y;
+        }
+        Wire* wire = 0;
+        append_wire(&wire, current);
+        append_node(nodes, {0b00, wire, 0, 0});
+        update_nodes(state, objects, nodes);
     }
 }
 
@@ -1146,26 +1207,13 @@ int main() {
     const int grid_spacing = 100;
 
     Object* objects = 0;
-    append_object(&objects, {'I', false, 4, 3, 2, 1, 2, 3, false, 0, 0});
-    append_object(&objects, {'O', false, 7, 7, 2, 1, 2, 3, false, 0, 0});
-    Wire* wires0 = 0;
-    append_wire(&wires0, {1, 1, 3, 1, false, 0, 0});
-    append_wire(&wires0, {3, 1, 3, 2, false, 0, 0});
     Wire* wires1 = 0;
-    append_wire(&wires1, {1, 3, 3, 3, false, 0, 0});
     append_wire(&wires1, {3, 3, 3, 4, false, 0, 0});
-    Wire* wires2 = 0;
-    append_wire(&wires2, {4, 1, 6, 1, false, 0, 0});
-    append_wire(&wires2, {4, 1, 4, 2, false, 0, 0});
-    append_wire(&wires2, {6, 1, 6, 2, false, 0, 0});
-    Wire* wires3 = 0;
-    append_wire(&wires3, {5, 3, 6, 3, false, 0, 0});
-    append_wire(&wires3, {6, 3, 6, 4, false, 0, 0});
+    append_wire(&wires1, {3, 4, 4, 4, false, 0, 0});
+    append_wire(&wires1, {4, 4, 4, 5, false, 0, 0});
     Node* nodes = 0;
-    append_node(&nodes, {0b00, wires0, 0, 0});
-    append_node(&nodes, {0b01, wires1, 0, 0});
-    append_node(&nodes, {0b10, wires2, 0, 0});
-    append_node(&nodes, {0b11, wires3, 0, 0});
+    append_node(&nodes, {0b00, wires1, 0, 0});
+
     
     int view_x = 0;
     int view_y = 0;
@@ -1188,15 +1236,6 @@ int main() {
         gs_mouse_x = screenspace_to_gridspace(state.i.mouse.x, view_x, grid_spacing * zoom);
         gs_mouse_y = screenspace_to_gridspace(state.i.mouse.y, view_y, grid_spacing * zoom);
 
-        if (state.i.get_key_pressed(KC_T)) {
-            if (objects[0].type == 'N') { objects[0].type = 'P'; } else
-            if (objects[0].type == 'P') { objects[0].type = '+'; } else 
-            if (objects[0].type == '+') { objects[0].type = '-'; } else 
-            if (objects[0].type == '-') { objects[0].type = 'I'; } else 
-            if (objects[0].type == 'I') { objects[0].type = 'O'; } else
-            if (objects[0].type == 'O') { objects[0].type = 'N'; }
-        }
-
         if (state.i.get_key_pressed(KC_Q)) {
             zoom /= 2.0;
         }
@@ -1215,19 +1254,31 @@ int main() {
         if (state.i.get_key(KC_D)) {
             view_x -= 1;
         }
-        update_inputs(&state, objects, view_x, view_y, grid_spacing * zoom);
         draw_grid(&state, view_x, view_y, zoom, grid_spacing);
         draw_objects_nodes(&state, objects, nodes, view_x, view_y, grid_spacing * zoom);
         update_draw_selection(&state, objects, nodes, &selection_x, &selection_y, view_x, view_y, grid_spacing * zoom);
-        drag_selection(&state, objects, nodes, &drag_x, &drag_y, &prev_drag_x, &prev_drag_y, gs_mouse_x, gs_mouse_y);
+        update_inputs(&state, objects, view_x, view_y, grid_spacing * zoom);
+        drag_selection(&state, objects, &nodes, &drag_x, &drag_y, &prev_drag_x, &prev_drag_y, gs_mouse_x, gs_mouse_y);
         delete_selection(&state, &objects, &nodes);
-        place_object(&state, &objects, gs_mouse_x, gs_mouse_y);
-        rotate_selection(&state, objects, nodes, view_x, view_y, zoom);
+        rotate_selection(&state, objects, &nodes);
+        place_object(&state, &objects, &nodes, gs_mouse_x, gs_mouse_y);
+        place_wire(&state, objects, &nodes, gs_mouse_x, gs_mouse_y);
 
-        //printf("%i, %i\n", gs_mouse_x, gs_mouse_y);
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
-        //printf("%f\t\t%f\n", state.t.dt, state.t.fps);
+        // Node* node = nodes;
+        // Wire* wire;
+        // while (node != nullptr) {
+        //     printf("(%i, (", node->state);
+        //     wire = node->wires;
+        //     while (wire != nullptr) {
+        //         printf("((%i, %i), (%i, %i), %i), ", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
+        //         wire = wire->next;
+        //     }
+        //     node = node->next;
+        //     printf("))\t");
+        // }
+        // printf("\n");
 
         state.end_frame();
     }
