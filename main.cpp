@@ -1052,16 +1052,46 @@ void combine_nodes(Node** nodes, Node* n1, Node* n2) {
     delete_node(nodes, n2, false);
 }
 
+struct NodeMerge {
+    Node* n1;
+    Node* n2;
+    NodeMerge* next;
+};
+
+void append_merge(NodeMerge** merges, NodeMerge merge) {
+    NodeMerge* next = (NodeMerge*)malloc(sizeof(NodeMerge));
+    *next = merge;
+    if (*merges == nullptr) {
+        *merges = next;
+        return;
+    }
+    NodeMerge* end;
+    NodeMerge* current = *merges;
+    while (current != nullptr) {
+        end = current;
+        current = current->next;
+    }
+    end->next = next;
+}
+
 void merge_nodes(Node** nodes) {
     Node* n1 = *nodes;
     Wire* w1;
     Node* n2;
     Wire* w2;
+    NodeMerge* merges;
+    NodeMerge* merge;
+    bool already_merge = false;
     bool should_merge = false;
     while (n1 != nullptr) {
         n2 = *nodes;
         while (n2 != nullptr) {
-            if (n1 != n2) {
+            merge = merges;
+            while (merge != nullptr) {
+                already_merge = (merge->n1 == n1 && merge->n2 == n2) || (merge->n1 == n2 && merge->n2 == n1);
+                merge = merge->next;
+            }
+            if (n1 != n2 && !already_merge) {
                 w1 = n1->wires;
                 while (w1 != nullptr) {
                     w2 = n2->wires;
@@ -1072,13 +1102,40 @@ void merge_nodes(Node** nodes) {
                     w1 = w1->next;
                 }
                 if (should_merge) {
-                    combine_nodes(nodes, n1, n2);
+                    append_merge(&merges, {n1, n2, 0});
                 }
                 should_merge = false;
             }
+            already_merge = false;
             n2 = n2->next;
         }
         n1 = n1->next;
+    }
+
+    merge = merges;
+    NodeMerge* merge2;
+    while (merge != nullptr) {
+        if (merge->n1 != merge->n2) {
+            combine_nodes(nodes, merge->n1, merge->n2);
+            merge2 = merges;
+            while (merge2 != nullptr) {
+                if (merge2->n1 == merge->n2) {
+                    merge2->n1 = n1;
+                } else if (merge2->n2 == merge->n2) {
+                    merge2->n2 = n1;
+                }
+                merge2 = merge2->next;
+            }
+        }
+        merge = merge->next;
+    }
+
+    merge = merges;
+    NodeMerge* next;
+    while (merge != nullptr) {
+        next = merge->next;
+        free(merge);
+        merge = next;
     }
 }
 
@@ -1274,6 +1331,75 @@ void place_wire(State* state, Object* objects, Node** nodes, int m_x, int m_y) {
     }
 }
 
+void sim_step(State* state, Object* objects, Node* nodes) {
+    if (state->i.get_key_pressed(KC_Y)) {
+        Object* object = objects;
+        Node* n1;
+        Node* n2;
+        Node* n3;
+        char n1_state;
+        char n2_state;
+        while (object != nullptr) {
+            switch (object->type) {
+                case 'N':
+                    n3 = get_node(nodes, object->c);
+                    if (n3 == nullptr) {
+                        break;
+                    }
+                    n1 = get_node(nodes, object->a);
+                    if (n1 != nullptr) {
+                        n1_state = n1->state;
+                    } else {
+                        n1_state = 0;
+                    }
+                    n2 = get_node(nodes, object->b);
+                    if (n2 != nullptr) {
+                        n2_state = n2->state;
+                    } else {
+                        n2_state = 0;
+                    }
+                    break;
+                case 'P':
+                    n3 = get_node(nodes, object->c);
+                    if (n3 == nullptr) {
+                        break;
+                    }
+                    n1 = get_node(nodes, object->a);
+                    if (n1 != nullptr) {
+                        n1_state = n1->state;
+                    } else {
+                        n1_state = 0;
+                    }
+                    n2 = get_node(nodes, object->b);
+                    if (n2 != nullptr) {
+                        n2_state = n2->state;
+                    } else {
+                        n2_state = 0;
+                    }
+                    break;
+                case '+':
+                    n1 = get_node(nodes, object->a);
+                    if (n1 != nullptr) {
+                        n1->state |= 0b10;
+                    }
+                    break;
+                case '-':
+                    n1 = get_node(nodes, object->a);
+                    if (n1 != nullptr) {
+                        n1->state |= 0b01;
+                    }
+                    break;
+                case 'I':
+                    n1 = get_node(nodes, object->a);
+                    if (n1 != nullptr) {
+                        n1->state |= object->state;
+                    }
+                    default: break;
+            }
+        }
+    }
+}
+    
 int main() {
     State state = State("test", 640, 480, 120, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
 
@@ -1336,6 +1462,7 @@ int main() {
         rotate_selection(&state, objects, &nodes);
         place_object(&state, &objects, &nodes, gs_mouse_x, gs_mouse_y);
         place_wire(&state, objects, &nodes, gs_mouse_x, gs_mouse_y);
+        sim_step(&state, objects, nodes);
 
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
