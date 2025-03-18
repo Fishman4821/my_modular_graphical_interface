@@ -116,7 +116,7 @@ struct Node {
     Node* next;
 };
 
-void delete_node(Node** nodes, Node* node) {
+void delete_node(Node** nodes, Node* node, bool wires) {
     if (node->prev == nullptr) {
         *nodes = node->next;
     } else {
@@ -125,7 +125,9 @@ void delete_node(Node** nodes, Node* node) {
     if (node->next != nullptr) {
         node->next->prev = node->prev;
     }
-    free_wires(node->wires);
+    if (wires) { 
+        free_wires(node->wires);
+    }
     free(node);
 }
 
@@ -760,11 +762,9 @@ void draw_objects_nodes(State* state, Object* objects, Node* nodes, int view_x, 
 
         wire = node->wires;
         while (wire != nullptr) {
-            state->r.line(wire->x1 * zoom + view_x, 
-                          wire->y1 * zoom + view_y, 
-                          wire->x2 * zoom + view_x, 
-                          wire->y2 * zoom + view_y, 
-                          *node_color);
+            state->r.rect(wire->x1 * zoom + view_x - 2, wire->y1 * zoom + view_y - 2, wire->x1 * zoom + view_x + 2, wire->y1 * zoom + view_y + 2, *node_color);
+            state->r.rect(wire->x2 * zoom + view_x - 2, wire->y2 * zoom + view_y - 2, wire->x2 * zoom + view_x + 2, wire->y2 * zoom + view_y + 2, *node_color);
+            state->r.line(wire->x1 * zoom + view_x, wire->y1 * zoom + view_y, wire->x2 * zoom + view_x, wire->y2 * zoom + view_y, *node_color);
             if (wire->selected) { state->r.rect(wire->x1 * zoom + view_x - 3, wire->y1 * zoom + view_y - 3, wire->x2 * zoom + view_x + 3, wire->y2 * zoom + view_y + 3, selection); }
             wire = wire->next;
         }
@@ -938,36 +938,26 @@ inline int screenspace_to_gridspace(int n, int view, int zoom) {
 }
 
 bool wires_intersect(Wire* wire1, Wire* wire2) {
-    Wire a, b;
-    memcpy(&a, wire1, sizeof(Wire));
-    memcpy(&b, wire2, sizeof(Wire));
-    int temp;
-    if (a.x1 > a.x2) {
-        temp = a.x1;
-        a.x1 = a.x2;
-        a.x2 = temp;
-    }
-    if (a.y1 > a.y2) {
-        temp = a.y1;
-        a.y1 = a.y2;
-        a.y2 = temp;
-    }
-    if (b.x1 > b.x2) {
-        temp = b.x1;
-        b.x1 = b.x2;
-        b.x2 = temp;
-    }
-    if (b.y1 > b.y2) {
-        temp = b.y1;
-        b.y1 = b.y2;
-        b.y2 = temp;
-    }
-    return a.x1 <= b.x1 && a.x2 >= b.x2 && a.y1 <= b.y1 && a.y2 >= b.y2;
+    // Wire a, b;
+    // memcpy(&a, wire1, sizeof(Wire));
+    // memcpy(&b, wire2, sizeof(Wire));
+    // Wire temp;
+    // if (b.x1 == b.x2 && a.y1 == a.y2) {
+    //     return a.x1 <= b.x1 && a.x2 >= b.x1 && a.y1 >= b.y1 && a.y1 >= b.y2;
+    // } else {
+    //     temp = a;
+    //     a = b;
+    //     b = temp;
+    //     return a.x1 <= b.x1 && a.x2 >= b.x1 && a.y1 >= b.y1 && a.y1 >= b.y2;
+    // }
+    return (wire1->x1 == wire2->x1 && wire1->y1 == wire2->y1) || (wire1->x2 == wire2->x2 && wire1->y2 == wire2->y2) ||
+           (wire1->x1 == wire2->x2 && wire1->y1 == wire2->y2) || (wire1->x2 == wire2->x1 && wire1->y2 == wire2->y1);
 }
 
 struct WireSplit {
     Node* n;
-    Wire* w;
+    Wire* w1;
+    Wire* w2;
     WireSplit* next;
 };
 
@@ -991,7 +981,7 @@ void cull_nodes(Node** nodes) {
     Node* node = *nodes;
     while (node != nullptr) {
         if (node->wires == nullptr) {
-            delete_node(nodes, node);
+            delete_node(nodes, node, true);
         }
         node = node->next;
     }
@@ -1002,25 +992,40 @@ void split_nodes(Node** nodes) {
     Wire* w1;
     Wire* w2;
     WireSplit* splits = 0;
+    WireSplit* split;
+    bool already_split = false;
+    bool should_split = false;
+    Wire* split_wire;
     while (n1 != nullptr) { // find splits
         w1 = n1->wires;
         while (w1 != nullptr) {
             w2 = n1->wires;
             while (w2 != nullptr) {
-                if (w1 != w2 && !wires_intersect(w1, w2)) {
-                    append_split(&splits, {n1, w2, 0});
+                split = splits;
+                while (split != nullptr) {
+                    already_split = split->w1 == w2 || split->w2 == w2;
+                    split = split->next;
                 }
+                if (w1 != w2 && !wires_intersect(w1, w2) && !already_split) {
+                    should_split = true;
+                    split_wire = w2;
+                }
+                already_split = false;
                 w2 = w2->next;
             }
+            if (should_split) {
+                append_split(&splits, {n1, w1, split_wire, 0});
+            }
+            should_split = false;
             w1 = w1->next;
         }
         n1 = n1->next;
     }
 
-    WireSplit* split = splits;
+    split = splits;
     while (split != nullptr) { // process splits
-        delist_wire(&split->n->wires, split->w);
-        append_node(nodes, {0b00, split->w, 0, 0});
+        delist_wire(&split->n->wires, split->w1);
+        append_node(nodes, {0b00, split->w1, 0, 0});
         split = split->next;
     }
 
@@ -1028,15 +1033,53 @@ void split_nodes(Node** nodes) {
     WireSplit* next;
     while (split != nullptr) {
         next = split->next;
-        printf("(%i, %i, %i, %i)\t", split->w->x1, split->w->y1, split->w->x2, split->w->y2);
+        printf("{(%i, %i, %i, %i), (%i, %i, %i, %i)}\t", split->w1->x1, split->w1->y1, split->w1->x2, split->w1->y2, split->w2->x1, split->w2->y1, split->w2->x2, split->w2->y2);
         free(split);
         split = next;
     }
     printf("\n");
 }
 
+void combine_nodes(Node** nodes, Node* n1, Node* n2) {
+    Wire* wire = n1->wires;
+    Wire* n1_end;
+    while (wire != nullptr) {
+        n1_end = wire;
+        wire = wire->next;
+    }
+    n1_end->next = n2->wires;
+    n2->wires->prev = n1_end;
+    delete_node(nodes, n2, false);
+}
+
 void merge_nodes(Node** nodes) {
-    
+    Node* n1 = *nodes;
+    Wire* w1;
+    Node* n2;
+    Wire* w2;
+    bool should_merge = false;
+    while (n1 != nullptr) {
+        n2 = *nodes;
+        while (n2 != nullptr) {
+            if (n1 != n2) {
+                w1 = n1->wires;
+                while (w1 != nullptr) {
+                    w2 = n2->wires;
+                    while (w2 != nullptr) {
+                        should_merge = wires_intersect(w1, w2);
+                        w2 = w2->next;
+                    }
+                    w1 = w1->next;
+                }
+                if (should_merge) {
+                    combine_nodes(nodes, n1, n2);
+                }
+                should_merge = false;
+            }
+            n2 = n2->next;
+        }
+        n1 = n1->next;
+    }
 }
 
 void connect_nodes(Object* objects, Node* nodes) {
@@ -1044,10 +1087,40 @@ void connect_nodes(Object* objects, Node* nodes) {
 }
 
 void update_nodes(State* state, Object* objects, Node** nodes) {
+    Node* node = *nodes;
+    Wire* wire;
+    while (node != nullptr) {
+        printf("(%i", node->state);
+        wire = node->wires;
+        while (wire != nullptr) {
+            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
+            wire = wire->next;
+        }
+        node = node->next;
+        printf(")\t");
+    }
+    printf("\n");
+
     split_nodes(nodes);
     cull_nodes(nodes);
     merge_nodes(nodes);
     connect_nodes(objects, *nodes);
+
+    node = *nodes;
+    int count = 0;
+    while (node != nullptr) {
+        node->state = count % 5;
+        printf("(%i", node->state);
+        wire = node->wires;
+        while (wire != nullptr) {
+            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
+            wire = wire->next;
+        }
+        count++;
+        node = node->next;
+        printf(")\t");
+    }
+    printf("]\n\n");
 }
 
 void drag_selection(State* state, Object* objects, Node** nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
@@ -1132,7 +1205,7 @@ void delete_selection(State* state, Object** objects, Node** nodes) {
             }
 
             if (node->wires == nullptr) {
-                delete_node(nodes, node);
+                delete_node(nodes, node, true);
             }
 
             node = next_node;
@@ -1208,9 +1281,9 @@ int main() {
 
     Object* objects = 0;
     Wire* wires1 = 0;
-    append_wire(&wires1, {3, 3, 3, 4, false, 0, 0});
-    append_wire(&wires1, {3, 4, 4, 4, false, 0, 0});
-    append_wire(&wires1, {4, 4, 4, 5, false, 0, 0});
+    append_wire(&wires1, {3, 2, 3, 3, false, 0, 0});
+    append_wire(&wires1, {3, 3, 4, 3, false, 0, 0});
+    //append_wire(&wires1, {4, 3, 4, 4, false, 0, 0});
     Node* nodes = 0;
     append_node(&nodes, {0b00, wires1, 0, 0});
 
@@ -1265,20 +1338,6 @@ int main() {
         place_wire(&state, objects, &nodes, gs_mouse_x, gs_mouse_y);
 
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
-
-        // Node* node = nodes;
-        // Wire* wire;
-        // while (node != nullptr) {
-        //     printf("(%i, (", node->state);
-        //     wire = node->wires;
-        //     while (wire != nullptr) {
-        //         printf("((%i, %i), (%i, %i), %i), ", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
-        //         wire = wire->next;
-        //     }
-        //     node = node->next;
-        //     printf("))\t");
-        // }
-        // printf("\n");
 
         state.end_frame();
     }
