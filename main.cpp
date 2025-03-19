@@ -1033,11 +1033,11 @@ void split_nodes(Node** nodes) {
     WireSplit* next;
     while (split != nullptr) {
         next = split->next;
-        printf("{(%i, %i, %i, %i), (%i, %i, %i, %i)}\t", split->w1->x1, split->w1->y1, split->w1->x2, split->w1->y2, split->w2->x1, split->w2->y1, split->w2->x2, split->w2->y2);
+        //printf("{(%i, %i, %i, %i), (%i, %i, %i, %i)}\t", split->w1->x1, split->w1->y1, split->w1->x2, split->w1->y2, split->w2->x1, split->w2->y1, split->w2->x2, split->w2->y2);
         free(split);
         split = next;
     }
-    printf("\n");
+    //printf("\n");
 }
 
 void combine_nodes(Node** nodes, Node* n1, Node* n2) {
@@ -1079,10 +1079,11 @@ void merge_nodes(Node** nodes) {
     Wire* w1;
     Node* n2;
     Wire* w2;
-    NodeMerge* merges;
+    NodeMerge* merges = nullptr;
     NodeMerge* merge;
     bool already_merge = false;
     bool should_merge = false;
+
     while (n1 != nullptr) {
         n2 = *nodes;
         while (n2 != nullptr) {
@@ -1113,7 +1114,13 @@ void merge_nodes(Node** nodes) {
     }
 
     merge = merges;
+    while (merge != nullptr) {
+        printf("(%x, %x, %i)\t", merge->n1, merge->n2, merge->next != nullptr);
+        merge = merge->next;
+    }
+    printf("\n");
     NodeMerge* merge2;
+    merge = merges;
     while (merge != nullptr) {
         if (merge->n1 != merge->n2) {
             combine_nodes(nodes, merge->n1, merge->n2);
@@ -1129,7 +1136,7 @@ void merge_nodes(Node** nodes) {
         }
         merge = merge->next;
     }
-
+        
     merge = merges;
     NodeMerge* next;
     while (merge != nullptr) {
@@ -1147,7 +1154,7 @@ void update_nodes(State* state, Object* objects, Node** nodes) {
     Node* node = *nodes;
     Wire* wire;
     while (node != nullptr) {
-        printf("(%i", node->state);
+        printf("(%x, %i", node, node->state);
         wire = node->wires;
         while (wire != nullptr) {
             printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
@@ -1177,7 +1184,7 @@ void update_nodes(State* state, Object* objects, Node** nodes) {
         node = node->next;
         printf(")\t");
     }
-    printf("]\n\n");
+    printf("\n");
 }
 
 void drag_selection(State* state, Object* objects, Node** nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
