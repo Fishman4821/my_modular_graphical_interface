@@ -1041,6 +1041,7 @@ void split_nodes(Node** nodes) {
 }
 
 void combine_nodes(Node** nodes, Node* n1, Node* n2) {
+    printf("combine: %x, %x\n", n1, n2);
     Wire* wire = n1->wires;
     Wire* n1_end;
     while (wire != nullptr) {
@@ -1089,7 +1090,9 @@ void merge_nodes(Node** nodes) {
         while (n2 != nullptr) {
             merge = merges;
             while (merge != nullptr) {
-                already_merge = (merge->n1 == n1 && merge->n2 == n2) || (merge->n1 == n2 && merge->n2 == n1);
+                if ((merge->n1 == n1 && merge->n2 == n2) || (merge->n1 == n2 && merge->n2 == n1)) {
+                    already_merge = true;
+                }
                 merge = merge->next;
             }
             if (n1 != n2 && !already_merge) {
@@ -1097,7 +1100,10 @@ void merge_nodes(Node** nodes) {
                 while (w1 != nullptr) {
                     w2 = n2->wires;
                     while (w2 != nullptr) {
-                        should_merge = wires_intersect(w1, w2);
+                        if (wires_intersect(w1, w2)) {
+                            should_merge = true;
+                        }
+                        printf("wires: %i, {(%i, %i), (%i, %i)} {(%i, %i), (%i, %i)}\n", wires_intersect(w1, w2), w1->x1, w1->y1, w1->x2, w1->y2, w2->x1, w2->y1, w2->x2, w2->y2);
                         w2 = w2->next;
                     }
                     w1 = w1->next;
@@ -1127,16 +1133,30 @@ void merge_nodes(Node** nodes) {
             merge2 = merges;
             while (merge2 != nullptr) {
                 if (merge2->n1 == merge->n2) {
+                    printf("swap m2->n1: %x == %x, %x\n", merge2->n1, merge->n2, n1);
                     merge2->n1 = n1;
                 } else if (merge2->n2 == merge->n2) {
+                    printf("swap m2->n2: %x == %x, %x\n", merge2->n2, merge->n2, n1);
                     merge2->n2 = n1;
                 }
                 merge2 = merge2->next;
             }
+            NodeMerge* merge3 = merges;
+            printf("after swap: ");
+            while (merge3 != nullptr) {
+                printf("(%x, %x, %i)  ", merge3->n1, merge3->n2, merge3->next != nullptr);
+                merge3 = merge3->next;
+            }
+            printf("\n");
         }
         merge = merge->next;
     }
-        
+    merge = merges;
+    while (merge != nullptr) {
+        printf("(%x, %x, %i)\t", merge->n1, merge->n2, merge->next != nullptr);
+        merge = merge->next;
+    }
+    printf("\n");
     merge = merges;
     NodeMerge* next;
     while (merge != nullptr) {
@@ -1166,6 +1186,18 @@ void update_nodes(State* state, Object* objects, Node** nodes) {
     printf("\n");
 
     split_nodes(nodes);
+    node = *nodes;
+    while (node != nullptr) {
+        printf("(%x, %i", node, node->state);
+        wire = node->wires;
+        while (wire != nullptr) {
+            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
+            wire = wire->next;
+        }
+        node = node->next;
+        printf(")\t");
+    }
+    printf("\n");
     cull_nodes(nodes);
     merge_nodes(nodes);
     connect_nodes(objects, *nodes);
