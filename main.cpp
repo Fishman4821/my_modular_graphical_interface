@@ -159,25 +159,14 @@ void free_nodes(Node* nodes) {
     }
 }
 
-Node* get_node(Node* nodes, int index) {
-    static int _i = 0;
-    Node* current = nodes;
-    for (_i = 0; _i < index; _i++) {
-        if (current->next != nullptr) { 
-            current = current->next;
-        } else {
-            break;
-        }
-    } 
-    return current;
-}
-
 struct Object {
     char type;
-    bool state;
+    char state;
     int x, y;
     char rotation;
-    int a, b, c;
+    Node* a; 
+    Node* b; 
+    Node* c;
     bool selected;
     Object* prev;
     Object* next;
@@ -230,7 +219,7 @@ const Color wire_conflicted = Color(140, 140, 0);
 
 const Color selection = Color(255, 255, 255, 35);
 
-void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view_y, int zoom, bool selected, Color a, Color b) {
+void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view_y, int zoom, bool selected, Color a, Color b, Color c) {
     if (rot == 0 || rot == 2) {
         int top_y = y * zoom;
         int bottom_y = top_y + zoom;
@@ -247,9 +236,10 @@ void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         if (rot == 0) {
             state->r.line(left_x + view_x, bottom_y + view_y, left_1_3_x + view_x, bottom_y + view_y, a);
             state->r.line(left_1_3_x + view_x, bottom_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, bottom_1_3_y + view_y, middle_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(middle_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_1_3_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_y + view_y, c);
 
             state->r.line(left_1_2_x + view_x, middle_y + view_y, right_1_2_x + view_x, middle_y + view_y, b);
             state->r.line(middle_x + view_x, middle_y + view_y, middle_x + view_x, top_y + view_y, b);
@@ -257,9 +247,10 @@ void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         } else {
             state->r.line(left_x + view_x, top_y + view_y, left_1_3_x + view_x, top_y + view_y, a);
             state->r.line(left_1_3_x + view_x, top_y + view_y, left_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, top_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, top_y + view_y, right_1_3_x + view_x, top_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, middle_x + view_x, top_1_3_y + view_y, a);
+            state->r.line(middle_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, c);
+            state->r.line(right_1_3_x + view_x, top_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, top_y + view_y, right_1_3_x + view_x, top_y + view_y, c);
 
             state->r.line(left_1_2_x + view_x, middle_y + view_y, right_1_2_x + view_x, middle_y + view_y, b);
             state->r.line(middle_x + view_x, middle_y + view_y, middle_x + view_x, bottom_y + view_y, b);
@@ -281,9 +272,10 @@ void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         if (rot == 1) {
             state->r.line(left_x + view_x, top_y + view_y, left_x + view_x, top_1_3_y + view_y, a);
             state->r.line(left_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_x + view_x, bottom_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_x + view_x, bottom_y + view_y, left_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, middle_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, middle_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(left_x + view_x, bottom_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(left_x + view_x, bottom_y + view_y, left_x + view_x, bottom_1_3_y + view_y, c);
 
             state->r.line(middle_x + view_x, top_1_2_y + view_y, middle_x + view_x, bottom_1_2_y + view_y, b);
             state->r.line(middle_x + view_x, middle_y + view_y, right_x + view_x, middle_y + view_y, b);
@@ -291,9 +283,10 @@ void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         } else {
             state->r.line(right_x + view_x, top_y + view_y, right_x + view_x, top_1_3_y + view_y, a);
             state->r.line(right_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_y + view_y, right_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(right_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, middle_y + view_y, a);
+            state->r.line(right_1_3_x + view_x, middle_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_y + view_y, right_x + view_x, bottom_1_3_y + view_y, c);
 
             state->r.line(middle_x + view_x, top_1_2_y + view_y, middle_x + view_x, bottom_1_2_y + view_y, b);
             state->r.line(middle_x + view_x, middle_y + view_y, left_x + view_x, middle_y + view_y, b);
@@ -303,34 +296,43 @@ void draw_nmos_symbol(State* state, int x, int y, char rot, int view_x, int view
 }
 
 void draw_nmos(State* state, Object* object, Node* nodes, int view_x, int view_y, int spacing_zoom) {
-    Node* a = get_node(nodes, object->a);
     const Color* a_color;
-    Node* b = get_node(nodes, object->b);
     const Color* b_color;
-    if (a == nullptr || a->state == 0b00) {
+    const Color* c_color;
+    if (object->a == nullptr || object->a->state == 0b00) {
         a_color = &wire_disconnected;
-    } else if (a->state == 0b01) {
+    } else if (object->a->state == 0b01) {
         a_color = &wire_off;
-    } else if (a->state == 0b10) {
+    } else if (object->a->state == 0b10) {
         a_color = &wire_on;
-    } else if (a->state == 0b11) {
+    } else if (object->a->state == 0b11) {
         a_color = &wire_conflicted;
     }
 
-    if (b == nullptr || b->state == 0b00) {
+    if (object->b == nullptr || object->b->state == 0b00) {
         b_color = &wire_disconnected;
-    } else if (b->state == 0b01) {
+    } else if (object->b->state == 0b01) {
         b_color = &wire_off;
-    } else if (b->state == 0b10) {
+    } else if (object->b->state == 0b10) {
         b_color = &wire_on;
-    } else if (b->state == 0b11) {
+    } else if (object->b->state == 0b11) {
         b_color = &wire_conflicted;
     }
 
-    draw_nmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color);
+    if (object->c == nullptr || object->c->state == 0b00) {
+        c_color = &wire_disconnected;
+    } else if (object->c->state == 0b01) {
+        c_color = &wire_off;
+    } else if (object->c->state == 0b10) {
+        c_color = &wire_on;
+    } else if (object->c->state == 0b11) {
+        c_color = &wire_conflicted;
+    }
+
+    draw_nmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color , *c_color);
 }
 
-void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view_y, int zoom, bool selected, Color a, Color b) {
+void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view_y, int zoom, bool selected, Color a, Color b, Color c) {
     if (rot == 0 || rot == 2) {
         int top_y = y * zoom;
         int bottom_y = top_y + zoom;
@@ -348,9 +350,10 @@ void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         if (rot == 0) {
             state->r.line(left_x + view_x, bottom_y + view_y, left_1_3_x + view_x, bottom_y + view_y, a);
             state->r.line(left_1_3_x + view_x, bottom_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, bottom_1_3_y + view_y, middle_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(middle_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_1_3_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_y + view_y, right_1_3_x + view_x, bottom_y + view_y, c);
 
             state->r.line(left_1_2_x + view_x, middle_y + view_y, right_1_2_x + view_x, middle_y + view_y, b);
             state->r.line(middle_x + view_x, top_1_3_y + view_y, middle_x + view_x, top_y + view_y, b);
@@ -363,9 +366,10 @@ void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         } else {
             state->r.line(left_x + view_x, top_y + view_y, left_1_3_x + view_x, top_y + view_y, a);
             state->r.line(left_1_3_x + view_x, top_y + view_y, left_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, top_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, top_y + view_y, right_1_3_x + view_x, top_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, middle_x + view_x, top_1_3_y + view_y, a);
+            state->r.line(middle_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, c);
+            state->r.line(right_1_3_x + view_x, top_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, top_y + view_y, right_1_3_x + view_x, top_y + view_y, c);
 
             state->r.line(left_1_2_x + view_x, middle_y + view_y, right_1_2_x + view_x, middle_y + view_y, b);
             state->r.line(middle_x + view_x, bottom_1_3_y + view_y, middle_x + view_x, bottom_y + view_y, b);
@@ -393,9 +397,10 @@ void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         if (rot == 1) {
             state->r.line(left_x + view_x, top_y + view_y, left_x + view_x, top_1_3_y + view_y, a);
             state->r.line(left_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_x + view_x, bottom_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(left_x + view_x, bottom_y + view_y, left_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, top_1_3_y + view_y, left_1_3_x + view_x, middle_y + view_y, a);
+            state->r.line(left_1_3_x + view_x, middle_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(left_x + view_x, bottom_1_3_y + view_y, left_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(left_x + view_x, bottom_y + view_y, left_x + view_x, bottom_1_3_y + view_y, c);
 
             state->r.line(middle_x + view_x, top_1_2_y + view_y, middle_x + view_x, bottom_1_2_y + view_y, b);
             state->r.line(right_1_3_x + view_x, middle_y + view_y, right_x + view_x, middle_y + view_y, b);
@@ -408,9 +413,10 @@ void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view
         } else {
             state->r.line(right_x + view_x, top_y + view_y, right_x + view_x, top_1_3_y + view_y, a);
             state->r.line(right_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, top_1_3_y + view_y, a);
-            state->r.line(right_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, a);
-            state->r.line(right_x + view_x, bottom_y + view_y, right_x + view_x, bottom_1_3_y + view_y, a);
+            state->r.line(right_1_3_x + view_x, top_1_3_y + view_y, right_1_3_x + view_x, middle_y + view_y, a);
+            state->r.line(right_1_3_x + view_x, middle_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_1_3_y + view_y, right_1_3_x + view_x, bottom_1_3_y + view_y, c);
+            state->r.line(right_x + view_x, bottom_y + view_y, right_x + view_x, bottom_1_3_y + view_y, c);
 
             state->r.line(middle_x + view_x, top_1_2_y + view_y, middle_x + view_x, bottom_1_2_y + view_y, b);
             state->r.line(left_1_3_x + view_x, middle_y + view_y, left_x + view_x, middle_y + view_y, b);
@@ -425,31 +431,40 @@ void draw_pmos_symbol(State* state, int x, int y, char rot, int view_x, int view
 }
 
 void draw_pmos(State* state, Object* object, Node* nodes, int view_x, int view_y, int spacing_zoom) {
-    Node* a = get_node(nodes, object->a);
     const Color* a_color;
-    Node* b = get_node(nodes, object->b);
     const Color* b_color;
-    if (a == nullptr || a->state == 0b00) {
+    const Color* c_color;
+    if (object->a == nullptr || object->a->state == 0b00) {
         a_color = &wire_disconnected;
-    } else if (a->state == 0b01) {
+    } else if (object->a->state == 0b01) {
         a_color = &wire_off;
-    } else if (a->state == 0b10) {
+    } else if (object->a->state == 0b10) {
         a_color = &wire_on;
-    } else if (a->state == 0b11) {
+    } else if (object->a->state == 0b11) {
         a_color = &wire_conflicted;
     }
 
-    if (b == nullptr || b->state == 0b00) {
+    if (object->b == nullptr || object->b->state == 0b00) {
         b_color = &wire_disconnected;
-    } else if (b->state == 0b01) {
+    } else if (object->b->state == 0b01) {
         b_color = &wire_off;
-    } else if (b->state == 0b10) {
+    } else if (object->b->state == 0b10) {
         b_color = &wire_on;
-    } else if (b->state == 0b11) {
+    } else if (object->b->state == 0b11) {
         b_color = &wire_conflicted;
     }
 
-    draw_pmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color);
+    if (object->c == nullptr || object->c->state == 0b00) {
+        c_color = &wire_disconnected;
+    } else if (object->c->state == 0b01) {
+        c_color = &wire_off;
+    } else if (object->c->state == 0b10) {
+        c_color = &wire_on;
+    } else if (object->c->state == 0b11) {
+        c_color = &wire_conflicted;
+    }
+
+    draw_pmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color, *c_color);
 }
 
 void draw_vplus_symbol(State* state, int x, int y, char rot, int view_x, int view_y, int zoom, bool selected, Color a) {
@@ -621,8 +636,16 @@ void draw_input_symbol(State* state, int x, int y, char rot, int view_x, int vie
 
 void draw_input(State* state, Object* object, Node* nodes, int view_x, int view_y, int spacing_zoom) {
     const Color* color;
-    if (object->state) { color = &wire_on; }
-    else { color = &wire_off; }
+
+    if (object->state == 0b00) {
+        color = &wire_disconnected;
+    } else if (object->state == 0b01) {
+        color = &wire_off;
+    } else if (object->state == 0b10) {
+        color = &wire_on;
+    } else if (object->state == 0b11) {
+        color = &wire_conflicted;
+    }
 
     draw_input_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *color, Color(0, 0, 0));
 }
@@ -701,16 +724,15 @@ void draw_output_symbol(State* state, int x, int y, char rot, int view_x, int vi
 }
 
 void draw_output(State* state, Object* object, Node* nodes, int view_x, int view_y, int spacing_zoom) {
-    Node* a = get_node(nodes, object->a);
     const Color* a_color;
     
-    if (a == nullptr || a->state == 0b00) {
+    if (object->a == nullptr || object->a->state == 0b00) {
         a_color = &wire_disconnected;
-    } else if (a->state == 0b01) {
+    } else if (object->a->state == 0b01) {
         a_color = &wire_off;
-    } else if (a->state == 0b10) {
+    } else if (object->a->state == 0b10) {
         a_color = &wire_on;
-    } else if (a->state == 0b11) {
+    } else if (object->a->state == 0b11) {
         a_color = &wire_conflicted;
     }
 
@@ -887,13 +909,16 @@ void update_inputs(State* state, Object* objects, int view_x, int view_y, int zo
                 int zoom_2_3 = zoom * 2.0 / 3.0;
                 int zoom_1_6 = zoom / 6.0;
                 if (object->rotation == 0 && point_in_rect(m_x, m_y, start_x - zoom_1_6, start_y - zoom_2_3, start_x + zoom_1_6, start_y)) {
-                    object->state = !object->state;
+                    object->state++;
                 } else if (object->rotation == 1 && point_in_rect(m_x, m_y, start_x, start_y - zoom_1_6, start_x + zoom_2_3, start_y + zoom_1_6)) {
-                    object->state = !object->state;
+                    object->state++;
                 } else if (object->rotation == 2 && point_in_rect(m_x, m_y, start_x - zoom_1_6, start_y, start_x + zoom_1_6, start_y + zoom_2_3)) {
-                    object->state = !object->state;
+                    object->state++;
                 } else if (object->rotation == 3 && point_in_rect(m_x, m_y, start_x - zoom_2_3, start_y - zoom_1_6, start_x, start_y + zoom_1_6)) {
-                    object->state = !object->state;
+                    object->state++;
+                }
+                if (object->state > 2) {
+                    object->state = 0;
                 }
             }
             object = object->next;
@@ -977,16 +1002,6 @@ void append_split(WireSplit** splits, WireSplit split) {
     end->next = next;
 }
 
-void cull_nodes(Node** nodes) {
-    Node* node = *nodes;
-    while (node != nullptr) {
-        if (node->wires == nullptr) {
-            delete_node(nodes, node, true);
-        }
-        node = node->next;
-    }
-}
-
 void split_nodes(Node** nodes) {
     Node* n1 = *nodes;
     Wire* w1;
@@ -1033,15 +1048,12 @@ void split_nodes(Node** nodes) {
     WireSplit* next;
     while (split != nullptr) {
         next = split->next;
-        //printf("{(%i, %i, %i, %i), (%i, %i, %i, %i)}\t", split->w1->x1, split->w1->y1, split->w1->x2, split->w1->y2, split->w2->x1, split->w2->y1, split->w2->x2, split->w2->y2);
         free(split);
         split = next;
     }
-    //printf("\n");
 }
 
 void combine_nodes(Node** nodes, Node* n1, Node* n2) {
-    printf("combine: %x, %x\n", n1, n2);
     Wire* wire = n1->wires;
     Wire* n1_end;
     while (wire != nullptr) {
@@ -1103,7 +1115,6 @@ void merge_nodes(Node** nodes) {
                         if (wires_intersect(w1, w2)) {
                             should_merge = true;
                         }
-                        printf("wires: %i, {(%i, %i), (%i, %i)} {(%i, %i), (%i, %i)}\n", wires_intersect(w1, w2), w1->x1, w1->y1, w1->x2, w1->y2, w2->x1, w2->y1, w2->x2, w2->y2);
                         w2 = w2->next;
                     }
                     w1 = w1->next;
@@ -1119,44 +1130,28 @@ void merge_nodes(Node** nodes) {
         n1 = n1->next;
     }
 
-    merge = merges;
-    while (merge != nullptr) {
-        printf("(%x, %x, %i)\t", merge->n1, merge->n2, merge->next != nullptr);
-        merge = merge->next;
-    }
-    printf("\n");
     NodeMerge* merge2;
+    Node* temp_n1;
+    Node* temp_n2;
     merge = merges;
     while (merge != nullptr) {
         if (merge->n1 != merge->n2) {
             combine_nodes(nodes, merge->n1, merge->n2);
             merge2 = merges;
+            temp_n1 = merge->n1;
+            temp_n2 = merge->n2;
             while (merge2 != nullptr) {
-                if (merge2->n1 == merge->n2) {
-                    printf("swap m2->n1: %x == %x, %x\n", merge2->n1, merge->n2, n1);
-                    merge2->n1 = n1;
-                } else if (merge2->n2 == merge->n2) {
-                    printf("swap m2->n2: %x == %x, %x\n", merge2->n2, merge->n2, n1);
-                    merge2->n2 = n1;
+                if (merge2->n1 == temp_n2) {
+                    merge2->n1 = temp_n1;
+                } else if (merge2->n2 == temp_n2) {
+                    merge2->n2 = temp_n1;
                 }
                 merge2 = merge2->next;
             }
-            NodeMerge* merge3 = merges;
-            printf("after swap: ");
-            while (merge3 != nullptr) {
-                printf("(%x, %x, %i)  ", merge3->n1, merge3->n2, merge3->next != nullptr);
-                merge3 = merge3->next;
-            }
-            printf("\n");
         }
         merge = merge->next;
     }
-    merge = merges;
-    while (merge != nullptr) {
-        printf("(%x, %x, %i)\t", merge->n1, merge->n2, merge->next != nullptr);
-        merge = merge->next;
-    }
-    printf("\n");
+
     merge = merges;
     NodeMerge* next;
     while (merge != nullptr) {
@@ -1167,56 +1162,83 @@ void merge_nodes(Node** nodes) {
 }
 
 void connect_nodes(Object* objects, Node* nodes) {
-
+    Object* object = objects;
+    while (object != nullptr) {
+        object->a = nullptr;
+        object->b = nullptr;
+        object->c = nullptr;
+        object = object->next;
+    }
+    object = objects;
+    Node* node;
+    Wire* wire;
+    while (object != nullptr) {
+        node = nodes;
+        while (node != nullptr) {
+            wire = node->wires;
+            while (wire != nullptr) {
+                switch (object->type) {
+                    case 'N': case 'P':
+                        if (object->rotation == 0) {
+                            if ((wire->x1 == object->x && wire->y1 == object->y + 1) || (wire->x2 == object->x && wire->y2 == object->y + 1)) {
+                                object->a = node;
+                            }
+                            if ((wire->x1 == object->x + 1 && wire->y1 == object->y) || (wire->x2 == object->x + 1 && wire->y2 == object->y)) {
+                                object->b = node;
+                            }
+                            if ((wire->x1 == object->x + 2 && wire->y1 == object->y + 1) || (wire->x2 == object->x + 2 && wire->y2 == object->y + 1)) {
+                                object->c = node;
+                            }
+                        } else if (object->rotation == 1) {
+                            if ((wire->x1 == object->x && wire->y1 == object->y) || (wire->x2 == object->x && wire->y2 == object->y)) {
+                                object->a = node;
+                            }
+                            if ((wire->x1 == object->x + 1 && wire->y1 == object->y + 1) || (wire->x2 == object->x + 1 && wire->y2 == object->y + 1)) {
+                                object->b = node;
+                            }
+                            if ((wire->x1 == object->x && wire->y1 == object->y + 2) || (wire->x2 == object->x && wire->y2 == object->y + 2)) {
+                                object->c = node;
+                            }
+                        } else if (object->rotation == 2) {
+                            if ((wire->x1 == object->x && wire->y1 == object->y) || (wire->x2 == object->x && wire->y2 == object->y)) {
+                                object->a = node;
+                            }
+                            if ((wire->x1 == object->x + 1 && wire->y1 == object->y + 1) || (wire->x2 == object->x + 1 && wire->y2 == object->y + 1)) {
+                                object->b = node;
+                            }
+                            if ((wire->x1 == object->x + 2 && wire->y1 == object->y) || (wire->x2 == object->x + 2 && wire->y2 == object->y)) {
+                                object->c = node;
+                            }
+                        } else if (object->rotation == 3) {
+                            if ((wire->x1 == object->x + 1 && wire->y1 == object->y) || (wire->x2 == object->x + 1 && wire->y2 == object->y)) {
+                                object->a = node;
+                            }
+                            if ((wire->x1 == object->x && wire->y1 == object->y + 1) || (wire->x2 == object->x && wire->y2 == object->y + 1)) {
+                                object->b = node;
+                            }
+                            if ((wire->x1 == object->x + 1 && wire->y1 == object->y + 2) || (wire->x2 == object->x + 1 && wire->y2 == object->y + 2)) {
+                                object->c = node;
+                            }
+                        }
+                    break;
+                    case '+': case '-': case 'I': case 'O':
+                        if ((wire->x1 == object->x && wire->y1 == object->y) || (wire->x2 == object->x && wire->y2 == object->y)) {
+                            object->a = node;
+                        }
+                    break;
+                }
+                wire = wire->next;
+            }
+            node = node->next;
+        }
+        object = object->next;
+    }
 }
 
 void update_nodes(State* state, Object* objects, Node** nodes) {
-    Node* node = *nodes;
-    Wire* wire;
-    while (node != nullptr) {
-        printf("(%x, %i", node, node->state);
-        wire = node->wires;
-        while (wire != nullptr) {
-            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
-            wire = wire->next;
-        }
-        node = node->next;
-        printf(")\t");
-    }
-    printf("\n");
-
     split_nodes(nodes);
-    node = *nodes;
-    while (node != nullptr) {
-        printf("(%x, %i", node, node->state);
-        wire = node->wires;
-        while (wire != nullptr) {
-            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
-            wire = wire->next;
-        }
-        node = node->next;
-        printf(")\t");
-    }
-    printf("\n");
-    cull_nodes(nodes);
     merge_nodes(nodes);
     connect_nodes(objects, *nodes);
-
-    node = *nodes;
-    int count = 0;
-    while (node != nullptr) {
-        node->state = count % 5;
-        printf("(%i", node->state);
-        wire = node->wires;
-        while (wire != nullptr) {
-            printf(", {(%i, %i), (%i, %i), %i}", wire->x1, wire->y1, wire->x2, wire->y2, wire->selected);
-            wire = wire->next;
-        }
-        count++;
-        node = node->next;
-        printf(")\t");
-    }
-    printf("\n");
 }
 
 void drag_selection(State* state, Object* objects, Node** nodes, int* drag_x, int* drag_y, int* prev_drag_x, int* prev_drag_y, int m_x, int m_y) {
@@ -1312,28 +1334,28 @@ void delete_selection(State* state, Object** objects, Node** nodes) {
 
 void place_object(State* state, Object** objects, Node** nodes, int m_x, int m_y) {
     if (state->i.get_key_pressed(KC_1)) {
-        append_object(objects, {'N', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'N', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_2)) {
-        append_object(objects, {'P', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'P', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_3)) {
-        append_object(objects, {'+', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'+', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_4)) {
-        append_object(objects, {'-', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'-', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_5)) {
-        append_object(objects, {'I', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'I', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     } else if (state->i.get_key_pressed(KC_6)) {
-        append_object(objects, {'O', false, m_x, m_y, 0, 0, 0, 0, false, 0, 0});
+        append_object(objects, {'O', false, m_x, m_y, 0, nullptr, nullptr, nullptr, false, 0, 0});
         update_nodes(state, *objects, nodes);
     }    
 }
 
 void rotate_selection(State* state, Object* objects, Node** nodes) { // maybe implement actual selection rotation later
-    if (state->i.get_key(KC_R)) {
+    if (state->i.get_key_pressed(KC_R)) {
         Object* object = objects;
 
         while (object != nullptr) {
@@ -1370,71 +1392,65 @@ void place_wire(State* state, Object* objects, Node** nodes, int m_x, int m_y) {
     }
 }
 
+char nmos(char b, char g) {
+    return (b == 0b01 && g == 0b10) ? 0b01 : 0b00;
+}
+
+char pmos(char b, char g) {
+    return (b == 0b10 && (g == 0b00 || g == 0b01)) ? 0b10 : 0b00;
+}
+
 void sim_step(State* state, Object* objects, Node* nodes) {
     if (state->i.get_key_pressed(KC_Y)) {
+        Node* node = nodes;
+        while (node != nullptr) {
+            node->state = 0;
+            node = node->next;
+        }
+
         Object* object = objects;
-        Node* n1;
-        Node* n2;
-        Node* n3;
-        char n1_state;
-        char n2_state;
+        char a_state;
         while (object != nullptr) {
             switch (object->type) {
                 case 'N':
-                    n3 = get_node(nodes, object->c);
-                    if (n3 == nullptr) {
-                        break;
-                    }
-                    n1 = get_node(nodes, object->a);
-                    if (n1 != nullptr) {
-                        n1_state = n1->state;
-                    } else {
-                        n1_state = 0;
-                    }
-                    n2 = get_node(nodes, object->b);
-                    if (n2 != nullptr) {
-                        n2_state = n2->state;
-                    } else {
-                        n2_state = 0;
+                    if (object->a == nullptr && object->c != nullptr) {
+                        object->state = nmos(object->c->state, object->b->state);
+                    } else if (object->a != nullptr && object->c == nullptr) {
+                        object->state = nmos(object->a->state, object->b->state);
+                    } else if (object->a != nullptr && object->c != nullptr) {
+                        a_state = object->a->state;
+                        object->a->state |= nmos(object->c->state, object->b->state);
+                        object->c->state |= nmos(a_state, object->b->state);
                     }
                     break;
                 case 'P':
-                    n3 = get_node(nodes, object->c);
-                    if (n3 == nullptr) {
-                        break;
-                    }
-                    n1 = get_node(nodes, object->a);
-                    if (n1 != nullptr) {
-                        n1_state = n1->state;
-                    } else {
-                        n1_state = 0;
-                    }
-                    n2 = get_node(nodes, object->b);
-                    if (n2 != nullptr) {
-                        n2_state = n2->state;
-                    } else {
-                        n2_state = 0;
+                    if (object->a == nullptr && object->c != nullptr) {
+                        object->state = pmos(object->c->state, object->b->state);
+                    } else if (object->a != nullptr && object->c == nullptr) {
+                        object->state = pmos(object->a->state, object->b->state);
+                    } else if (object->a != nullptr && object->c != nullptr) {
+                        a_state = object->a->state;
+                        object->a->state |= pmos(object->c->state, object->b->state);
+                        object->c->state |= pmos(a_state, object->b->state);
                     }
                     break;
                 case '+':
-                    n1 = get_node(nodes, object->a);
-                    if (n1 != nullptr) {
-                        n1->state |= 0b10;
+                    if (object->a != nullptr) {
+                        object->a->state |= 0b10;
                     }
                     break;
                 case '-':
-                    n1 = get_node(nodes, object->a);
-                    if (n1 != nullptr) {
-                        n1->state |= 0b01;
+                    if (object->a != nullptr) {
+                        object->a->state |= 0b01;
                     }
                     break;
                 case 'I':
-                    n1 = get_node(nodes, object->a);
-                    if (n1 != nullptr) {
-                        n1->state |= object->state;
+                    if (object->a != nullptr) {
+                        object->a->state |= object->state;
                     }
                     default: break;
             }
+            object = object->next;
         }
     }
 }
@@ -1444,13 +1460,18 @@ int main() {
 
     const int grid_spacing = 100;
 
-    Object* objects = 0;
     Wire* wires1 = 0;
-    append_wire(&wires1, {3, 2, 3, 3, false, 0, 0});
-    append_wire(&wires1, {3, 3, 4, 3, false, 0, 0});
-    //append_wire(&wires1, {4, 3, 4, 4, false, 0, 0});
+    append_wire(&wires1, {1, 3, 2, 3, false, 0, 0});
+    Wire* wires2 = 0;
+    append_wire(&wires2, {3, 1, 3, 2, false, 0, 0});
+    Wire* wires3 = 0;
+    append_wire(&wires3, {4, 3, 5, 3, false, 0, 0});
     Node* nodes = 0;
     append_node(&nodes, {0b00, wires1, 0, 0});
+    append_node(&nodes, {0b01, wires2, 0, 0});
+    append_node(&nodes, {0b10, wires3, 0, 0});
+    Object* objects = 0;
+    append_object(&objects, {'P', false, 2, 2, 3, nodes, nodes->next, nodes->next->next, false, 0, 0});
 
     
     int view_x = 0;
@@ -1502,7 +1523,16 @@ int main() {
         place_object(&state, &objects, &nodes, gs_mouse_x, gs_mouse_y);
         place_wire(&state, objects, &nodes, gs_mouse_x, gs_mouse_y);
         sim_step(&state, objects, nodes);
-
+        Object* object = objects;
+        printf("objects: ");
+        while (object != nullptr) {
+            int a = (object->a != nullptr) ? object->a->state : -1;
+            int b = (object->b != nullptr) ? object->b->state : -1;
+            int c = (object->c != nullptr) ? object->c->state : -1;
+            printf("(%c, (%i, %i), %i, %i, (%i, %i, %i), %i)  ", object->type, object->x, object->y, object->rotation, object->state, a, b, c, object->selected);
+            object = object->next;
+        }
+        printf("\n");
         state.r.rect(gs_mouse_x * grid_spacing * zoom + view_x - 5, gs_mouse_y * grid_spacing * zoom + view_y - 5, gs_mouse_x * grid_spacing * zoom + view_x + 5, gs_mouse_y * grid_spacing * zoom + view_y + 5, Color(255, 0, 0, 35));
 
         state.end_frame();
