@@ -299,14 +299,26 @@ void draw_nmos(State* state, Object* object, Node* nodes, int view_x, int view_y
     const Color* a_color;
     const Color* b_color;
     const Color* c_color;
-    if (object->a == nullptr || object->a->state == 0b00) {
-        a_color = &wire_disconnected;
-    } else if (object->a->state == 0b01) {
-        a_color = &wire_off;
-    } else if (object->a->state == 0b10) {
-        a_color = &wire_on;
-    } else if (object->a->state == 0b11) {
-        a_color = &wire_conflicted;
+    if (object->a != nullptr) {
+        if (object->a->state == 0b00) {
+            a_color = &wire_disconnected;
+        } else if (object->a->state == 0b01) {
+            a_color = &wire_off;
+        } else if (object->a->state == 0b10) {
+            a_color = &wire_on;
+        } else if (object->a->state == 0b11) {
+            a_color = &wire_conflicted;
+        }
+    } else {
+        if (object->state == 0b00) {
+            a_color = &wire_disconnected;
+        } else if (object->state == 0b01) {
+            a_color = &wire_off;
+        } else if (object->state == 0b10) {
+            a_color = &wire_on;
+        } else if (object->state == 0b11) {
+            a_color = &wire_conflicted;
+        }
     }
 
     if (object->b == nullptr || object->b->state == 0b00) {
@@ -319,14 +331,26 @@ void draw_nmos(State* state, Object* object, Node* nodes, int view_x, int view_y
         b_color = &wire_conflicted;
     }
 
-    if (object->c == nullptr || object->c->state == 0b00) {
-        c_color = &wire_disconnected;
-    } else if (object->c->state == 0b01) {
-        c_color = &wire_off;
-    } else if (object->c->state == 0b10) {
-        c_color = &wire_on;
-    } else if (object->c->state == 0b11) {
-        c_color = &wire_conflicted;
+    if (object->c != nullptr) {
+        if (object->c->state == 0b00) {
+            c_color = &wire_disconnected;
+        } else if (object->c->state == 0b01) {
+            c_color = &wire_off;
+        } else if (object->c->state == 0b10) {
+            c_color = &wire_on;
+        } else if (object->c->state == 0b11) {
+            c_color = &wire_conflicted;
+        }
+    } else {
+        if (object->state == 0b00) {
+            c_color = &wire_disconnected;
+        } else if (object->state == 0b01) {
+            c_color = &wire_off;
+        } else if (object->state == 0b10) {
+            c_color = &wire_on;
+        } else if (object->state == 0b11) {
+            c_color = &wire_conflicted;
+        }
     }
 
     draw_nmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color , *c_color);
@@ -434,14 +458,26 @@ void draw_pmos(State* state, Object* object, Node* nodes, int view_x, int view_y
     const Color* a_color;
     const Color* b_color;
     const Color* c_color;
-    if (object->a == nullptr || object->a->state == 0b00) {
-        a_color = &wire_disconnected;
-    } else if (object->a->state == 0b01) {
-        a_color = &wire_off;
-    } else if (object->a->state == 0b10) {
-        a_color = &wire_on;
-    } else if (object->a->state == 0b11) {
-        a_color = &wire_conflicted;
+    if (object->a != nullptr) {
+        if (object->a->state == 0b00) {
+            a_color = &wire_disconnected;
+        } else if (object->a->state == 0b01) {
+            a_color = &wire_off;
+        } else if (object->a->state == 0b10) {
+            a_color = &wire_on;
+        } else if (object->a->state == 0b11) {
+            a_color = &wire_conflicted;
+        }
+    } else {
+        if (object->state == 0b00) {
+            a_color = &wire_disconnected;
+        } else if (object->state == 0b01) {
+            a_color = &wire_off;
+        } else if (object->state == 0b10) {
+            a_color = &wire_on;
+        } else if (object->state == 0b11) {
+            a_color = &wire_conflicted;
+        }
     }
 
     if (object->b == nullptr || object->b->state == 0b00) {
@@ -454,14 +490,26 @@ void draw_pmos(State* state, Object* object, Node* nodes, int view_x, int view_y
         b_color = &wire_conflicted;
     }
 
-    if (object->c == nullptr || object->c->state == 0b00) {
-        c_color = &wire_disconnected;
-    } else if (object->c->state == 0b01) {
-        c_color = &wire_off;
-    } else if (object->c->state == 0b10) {
-        c_color = &wire_on;
-    } else if (object->c->state == 0b11) {
-        c_color = &wire_conflicted;
+    if (object->c != nullptr) {
+        if (object->c->state == 0b00) {
+            c_color = &wire_disconnected;
+        } else if (object->c->state == 0b01) {
+            c_color = &wire_off;
+        } else if (object->c->state == 0b10) {
+            c_color = &wire_on;
+        } else if (object->c->state == 0b11) {
+            c_color = &wire_conflicted;
+        }
+    } else {
+        if (object->state == 0b00) {
+            c_color = &wire_disconnected;
+        } else if (object->state == 0b01) {
+            c_color = &wire_off;
+        } else if (object->state == 0b10) {
+            c_color = &wire_on;
+        } else if (object->state == 0b11) {
+            c_color = &wire_conflicted;
+        }
     }
 
     draw_pmos_symbol(state, object->x, object->y, object->rotation, view_x, view_y, spacing_zoom, object->selected, *a_color, *b_color, *c_color);
@@ -1392,6 +1440,17 @@ void place_wire(State* state, Object* objects, Node** nodes, int m_x, int m_y) {
     }
 }
 
+/*
+NMOS truth table:
+    b g | s
+    -------
+    0 0 | x
+    0 1 |
+    1 0 | 0
+    1 1 |
+*/
+
+
 char nmos(char b, char g) {
     return (b == 0b01 && g == 0b10) ? 0b01 : 0b00;
 }
@@ -1401,60 +1460,80 @@ char pmos(char b, char g) {
 }
 
 void sim_step(State* state, Object* objects, Node* nodes) {
-    if (state->i.get_key_pressed(KC_Y)) {
-        Node* node = nodes;
-        while (node != nullptr) {
-            node->state = 0;
-            node = node->next;
-        }
+    Node* node = nodes;
+    while (node != nullptr) {
+        node->state = 0;
+        node = node->next;
+    }
 
-        Object* object = objects;
-        char a_state;
-        while (object != nullptr) {
-            switch (object->type) {
-                case 'N':
-                    if (object->a == nullptr && object->c != nullptr) {
-                        object->state = nmos(object->c->state, object->b->state);
-                    } else if (object->a != nullptr && object->c == nullptr) {
-                        object->state = nmos(object->a->state, object->b->state);
-                    } else if (object->a != nullptr && object->c != nullptr) {
-                        a_state = object->a->state;
-                        object->a->state |= nmos(object->c->state, object->b->state);
-                        object->c->state |= nmos(a_state, object->b->state);
-                    }
-                    break;
-                case 'P':
-                    if (object->a == nullptr && object->c != nullptr) {
-                        object->state = pmos(object->c->state, object->b->state);
-                    } else if (object->a != nullptr && object->c == nullptr) {
-                        object->state = pmos(object->a->state, object->b->state);
-                    } else if (object->a != nullptr && object->c != nullptr) {
-                        a_state = object->a->state;
-                        object->a->state |= pmos(object->c->state, object->b->state);
-                        object->c->state |= pmos(a_state, object->b->state);
-                    }
-                    break;
-                case '+':
-                    if (object->a != nullptr) {
-                        object->a->state |= 0b10;
-                    }
-                    break;
-                case '-':
-                    if (object->a != nullptr) {
-                        object->a->state |= 0b01;
-                    }
-                    break;
-                case 'I':
-                    if (object->a != nullptr) {
-                        object->a->state |= object->state;
-                    }
-                    default: break;
-            }
-            object = object->next;
+    Object* object = objects;
+    char a_state;
+    while (object != nullptr) {
+        switch (object->type) {
+            case 'N':
+                if (object->a == nullptr && object->c != nullptr) {
+                    object->state = nmos(object->c->state, object->b->state);
+                } else if (object->a != nullptr && object->c == nullptr) {
+                    object->state = nmos(object->a->state, object->b->state);
+                } else if (object->a != nullptr && object->c != nullptr) {
+                    a_state = object->a->state;
+                    object->a->state |= nmos(object->c->state, object->b->state);
+                    object->c->state |= nmos(a_state, object->b->state);
+                }
+                break;
+            case 'P':
+                if (object->a == nullptr && object->c != nullptr) {
+                    object->state = pmos(object->c->state, object->b->state);
+                } else if (object->a != nullptr && object->c == nullptr) {
+                    object->state = pmos(object->a->state, object->b->state);
+                } else if (object->a != nullptr && object->c != nullptr) {
+                    a_state = object->a->state;
+                    object->a->state |= pmos(object->c->state, object->b->state);
+                    object->c->state |= pmos(a_state, object->b->state);
+                }
+                break;
+            case '+':
+                if (object->a != nullptr) {
+                    object->a->state |= 0b10;
+                }
+                break;
+            case '-':
+                if (object->a != nullptr) {
+                    object->a->state |= 0b01;
+                }
+                break;
+            case 'I':
+                if (object->a != nullptr) {
+                    object->a->state |= object->state;
+                }
+                default: break;
         }
+        object = object->next;
     }
 }
     
+void draw_update_sim_controls(State* state, bool* loop, bool* step) {
+    state->r.rect(10, 10, 74, 42, Color(49, 49, 49));
+    if (*loop) {
+        state->r.rect(15, 15, 42, 37, wire_on);
+    } else {
+        state->r.rect(15, 15, 42, 37, wire_off);
+    }
+    int m_x = state->i.mouse.x;
+    int m_y = state->i.mouse.y;
+    if (state->i.get_mouse_button_pressed(MB_LEFT) && m_x > 15 && m_x < 42 && m_y > 15 && m_y < 37) {
+        *loop = !*loop;
+    }
+    if (state->i.get_mouse_button_pressed(MB_LEFT) && m_x > 47 && m_x < 69 && m_y > 15 && m_y < 37) {
+        *step = true;
+    }
+    if (*step) {
+        state->r.rect(47, 15, 69, 37, wire_on);
+    } else {
+        state->r.rect(47, 15, 69, 37, wire_off);
+    }
+}
+
 int main() {
     State state = State("test", 640, 480, 120, WINDOW_RESIZEABLE | INPUT_MULTI_THREADED | ELEMENTS_ENABLE);
 
@@ -1489,6 +1568,9 @@ int main() {
     int gs_mouse_x = 0;
     int gs_mouse_y = 0;
 
+    bool loop = false;
+    bool step = false;
+
     while (!state.quit) {
         state.start_frame();
 
@@ -1522,7 +1604,13 @@ int main() {
         rotate_selection(&state, objects, &nodes);
         place_object(&state, &objects, &nodes, gs_mouse_x, gs_mouse_y);
         place_wire(&state, objects, &nodes, gs_mouse_x, gs_mouse_y);
-        sim_step(&state, objects, nodes);
+        draw_update_sim_controls(&state, &loop, &step);
+        if (loop || step) {
+            sim_step(&state, objects, nodes);
+        }
+        if (step) {
+            step = false;
+        }
         Object* object = objects;
         printf("objects: ");
         while (object != nullptr) {
