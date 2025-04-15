@@ -2,8 +2,8 @@
 #include <iostream>
 #include <string.h>
 
-#include "SDL.h"
-#include "SDL_ttf.h"
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_ttf.h"
 
 #include "mgui_math.cpp"
 #include "mgui_keycodes.cpp"
@@ -151,6 +151,7 @@ private:
     SDL_Window* window;
     SDL_Surface* window_surface;
     SDL_Renderer* renderer;
+    SDL_Texture* frame_buffer;
 
     Uint32 to_sdl_window_flags(Uint32 flags) {
         Uint32 val = 0;
@@ -172,16 +173,33 @@ public:
             width, height,
             to_sdl_window_flags(window_flags));
 
-        this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+            this->renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
 #ifdef MGUI_TEXT
         TTF_Init();
 #endif
         this->window_surface = SDL_GetWindowSurface(this->window);
         SDL_SetRenderDrawBlendMode(this->renderer, SDL_BLENDMODE_BLEND);
+
+        this->update();
     }
 
     void fullscreen(bool val) {
         SDL_SetWindowFullscreen(this->window, SDL_WINDOW_FULLSCREEN_DESKTOP & val);
+    }
+
+    void init_frame_buffer() {
+        this->frame_buffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
+    }
+
+    void set_frame_buffer(uint32_t* pixels) {
+        SDL_UpdateTexture(frame_buffer, NULL, pixels, w * sizeof(uint32_t));
+        
+        SDL_RenderClear(renderer);
+        SDL_RenderCopy(renderer, frame_buffer, NULL, NULL);
+    }
+
+    void destroy_frame_buffer() {
+        SDL_DestroyTexture(frame_buffer);
     }
 
     void rect(int x1, int y1, int x2, int y2, Color fill) {
@@ -234,24 +252,24 @@ public:
     }
 
     void cubic_bezier(Vec2 p0, Vec2 p1, Vec2 p2, Vec2 p3, int precision, Color fill) {
-        Vec2 q0 = Vec2(0, 0);
-        Vec2 q1 = Vec2(0, 0);
-        Vec2 q2 = Vec2(0, 0);
+        Vec2 q0 = {0};
+        Vec2 q1 = {0};
+        Vec2 q2 = {0};
 
-        Vec2 r0 = Vec2(0, 0);
-        Vec2 r1 = Vec2(0, 0);
+        Vec2 r0 = {0};
+        Vec2 r1 = {0};
 
-        Vec2 b = Vec2(0, 0);
+        Vec2 b = {0};
 
         for (float t = 0.0f; t < 1.0f; t += 1 / powf(10, precision)) {
-            q0 = lerpVec2(p0, p1, t);
-            q1 = lerpVec2(p1, p2, t);
-            q2 = lerpVec2(p2, p3, t);
+            q0 = lerp_Vec2(p0, p1, t);
+            q1 = lerp_Vec2(p1, p2, t);
+            q2 = lerp_Vec2(p2, p3, t);
         
-            r0 = lerpVec2(q0, q1, t);
-            r1 = lerpVec2(q1, q2, t);
+            r0 = lerp_Vec2(q0, q1, t);
+            r1 = lerp_Vec2(q1, q2, t);
 
-            b = lerpVec2(r0, r1, t);
+            b = lerp_Vec2(r0, r1, t);
 
             point(b, fill);
         }
